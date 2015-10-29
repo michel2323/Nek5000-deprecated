@@ -7,6 +7,9 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef LZ4COMPRESSION
+#include "lz4.h"
+#endif
 
 #ifndef FNAME_H
 #define FNAME_H
@@ -55,12 +58,56 @@ static char name[MAX_NAME+1];
 int bytesw_write=0;
 int bytesw_read=0;
 
+#ifdef LZ4COMPRESSION
+static LZ4_stream_t lz4Stream_body; 
+static LZ4_stream_t* lz4Stream=&lz4Stream_body;
+enum {
+  BLOCK_BYTES = 1024 * 8
+};
+static char inpBuf[2][BLOCK_BYTES];
+static int inpBufIndex=0;
+#endif
 /*************************************byte.c***********************************/
 
 #ifdef UNDERSCORE
   void exitt_();
 #else
   void exitt();
+#endif
+
+#ifdef LZ4COMPRESSION
+size_t fwrite_lz4 (const void *buf, size_t size, size_t count, FILE *fp) {
+  int i=0;
+  size_t ccount=0; // Bytes in the chunk to be compressed. This is BLOCK_BYTES besides for the last chunk
+  size_t lcount=count*size; // Bytes left to be compressed
+  size_t offset=0;
+  while (lcount > 0) {
+    if(lcount < BLOCK_BYTES) {
+      ccount=lcount;
+    }
+    else {
+      ccount=BLOCK_BYTES;
+    }
+    char* const inpPtr = inpBuf[inpBufIndex];
+    memcpy(inpPtr, buf+offset, ccount);
+    {
+      char cmpBuf[LZ4_COMPRESSBOUND(BLOCK_BYTES)];
+      const int cmpBytes = LZ4_compress_fast_continue(
+          lz4Stream, inpPtr, cmpBuf, ccount, sizeof(cmpBuf), 1);
+      /*if(cmpBytes <= 0) {*/
+      /*break;*/
+      /*}*/
+      /*write_int(outFp, cmpBytes);*/
+      /*write_bin(outFp, cmpBuf, (size_t) cmpBytes);*/
+      fwrite(&cmpBytes, sizeof(cmpBytes),1,fp);
+      fwrite(&cmpBuf, 1, cmpBytes, fp);
+    }
+    inpBufIndex = (inpBufIndex + 1) % 2;
+    lcount=lcount-ccount;
+    offset=offset+ccount;
+  }
+  return count;
+}
 #endif
 
 void byte_reverse(float *buf, int *nn,int *ierr)
@@ -152,6 +199,8 @@ void byte_open(char *n,int *ierr)
 void byte_close(int *ierr)
 {
   if (!fp) return;
+  int tmp=0;
+  fwrite(&tmp, sizeof(tmp), 1, fp);
 
   if (fclose(fp))
   {
@@ -193,13 +242,23 @@ void byte_write(float *buf, int *n,int *ierr)
       return;
     }
     flag=WRITE;
+#ifdef LZ4COMPRESSION
+    inpBufIndex=0;
+    LZ4_resetStream(lz4Stream);
+#endif
   }
+  printf("FLAG: %d\n", flag);
 
   if (flag==WRITE)
     {
       if (bytesw_write == 1)
         byte_reverse (buf,n,ierr);
+#ifdef LZ4COMPRESSION
+      fwrite_lz4(buf,sizeof(float),*n,fp);
+      /*fwrite(buf,sizeof(float),*n,fp);*/
+#else
       fwrite(buf,sizeof(float),*n,fp);
+#endif
     }
   else
   {
