@@ -61,11 +61,15 @@ int bytesw_read=0;
 #ifdef LZ4COMPRESSION
 static LZ4_stream_t lz4Stream_body; 
 static LZ4_stream_t* lz4Stream=&lz4Stream_body;
+static LZ4_streamDecode_t lz4StreamDecode_body;
+static LZ4_streamDecode_t* lz4StreamDecode = &lz4StreamDecode_body;
 enum {
   BLOCK_BYTES = 1024 * 8
 };
 static char inpBuf[2][BLOCK_BYTES];
 static int inpBufIndex=0;
+static char decBuf[2][BLOCK_BYTES];
+static int  decBufIndex = 0;
 #endif
 /*************************************byte.c***********************************/
 
@@ -79,6 +83,9 @@ static int inpBufIndex=0;
 size_t fwrite_lz4 (const void *buf, size_t size, size_t count, FILE *fp) {
   int i=0;
   size_t ccount=0; // Bytes in the chunk to be compressed. This is BLOCK_BYTES besides for the last chunk
+  if(count<0 || fp==NULL) {
+    return -1;
+  }
   size_t lcount=count*size; // Bytes left to be compressed
   size_t offset=0;
   while (lcount > 0) {
@@ -94,11 +101,9 @@ size_t fwrite_lz4 (const void *buf, size_t size, size_t count, FILE *fp) {
       char cmpBuf[LZ4_COMPRESSBOUND(BLOCK_BYTES)];
       const int cmpBytes = LZ4_compress_fast_continue(
           lz4Stream, inpPtr, cmpBuf, ccount, sizeof(cmpBuf), 1);
-      /*if(cmpBytes <= 0) {*/
-      /*break;*/
-      /*}*/
-      /*write_int(outFp, cmpBytes);*/
-      /*write_bin(outFp, cmpBuf, (size_t) cmpBytes);*/
+      if(cmpBytes <= 0) {
+        break;
+      }
       fwrite(&cmpBytes, sizeof(cmpBytes),1,fp);
       fwrite(&cmpBuf, 1, cmpBytes, fp);
     }
@@ -107,6 +112,37 @@ size_t fwrite_lz4 (const void *buf, size_t size, size_t count, FILE *fp) {
     offset=offset+ccount;
   }
   return count;
+}
+size_t fread_lz4 (void *buf, size_t size, size_t count, FILE *fp) {
+  size_t offset=0;
+  for(;;) {
+    char cmpBuf[LZ4_COMPRESSBOUND(BLOCK_BYTES)];
+    size_t cmpBytes = 0;
+    /*const size_t readCount0 = read_int(inpFp, &cmpBytes);*/
+    const size_t readCount0 = fread(&cmpBytes, sizeof(cmpBytes), 1, fp);
+    if(readCount0 != 1 || cmpBytes <= 0) {
+      break;
+    }
+
+    /*const size_t readCount1 = read_bin(inpFp, cmpBuf, (size_t) cmpBytes);*/
+    const size_t readCount1 = fread(cmpBuf,1,cmpBytes,fp);
+    if(readCount1 != (size_t) cmpBytes) {
+      break;
+    }
+
+    {
+      char* decPtr = decBuf[decBufIndex];
+      int decBytes = LZ4_decompress_safe_continue(
+          lz4StreamDecode, cmpBuf, decPtr, cmpBytes, BLOCK_BYTES);
+      if(decBytes <= 0) {
+        break;
+      }
+      /*write_bin(outFp, decPtr, (size_t) decBytes);*/
+      memcpy(buf+offset, decPtr, (size_t) decBytes);
+      offset=offset+(size_t) decBytes;
+    }
+    decBufIndex = (decBufIndex + 1) % 2;
+  }
 }
 #endif
 
@@ -255,7 +291,6 @@ void byte_write(float *buf, int *n,int *ierr)
         byte_reverse (buf,n,ierr);
 #ifdef LZ4COMPRESSION
       fwrite_lz4(buf,sizeof(float),*n,fp);
-      /*fwrite(buf,sizeof(float),*n,fp);*/
 #else
       fwrite(buf,sizeof(float),*n,fp);
 #endif
@@ -280,6 +315,7 @@ void byte_read(float *buf, int *n,int *ierr)
 
   if (!fp)
   {
+    printf("FILENAME: %s\n", name);
      if (!(fp=fopen(name,"rb")))
      {
         printf("%s\n",name);
@@ -288,13 +324,28 @@ void byte_read(float *buf, int *n,int *ierr)
         return;
      }
      flag=READ;
+#ifdef LZ4COMPRESSION
+     decBufIndex=0;
+     LZ4_setStreamDecode(lz4StreamDecode,NULL,0);
+#endif
   }
 
   if (flag==READ)
   {
      if (bytesw_read == 1)
         byte_reverse (buf,n,ierr);
+#ifdef LZ4COMPRESSION
+     char key[] = "lid.re2";
+     if(strstr(name,key) == 0) {
+       printf("here\n");
+       fread_lz4(buf,sizeof(float),*n,fp);
+     }
+     else {
+       fread(buf,sizeof(float),*n,fp);
+     }
+#else
      fread(buf,sizeof(float),*n,fp);
+#endif
      if (ferror(fp))
      {
        printf("ABORT: Error reading %s\n",name);
