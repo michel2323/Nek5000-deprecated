@@ -113,20 +113,24 @@ size_t fwrite_lz4 (const void *buf, size_t size, size_t count, FILE *fp) {
   }
   return count;
 }
-size_t fread_lz4 (void *buf, size_t size, size_t count, FILE *fp) {
+
+FILE* fopen_lz4 (FILE *fp) {
   size_t offset=0;
+  int k=1;
+  void *buf=malloc(BLOCK_BYTES*100);
   for(;;) {
     char cmpBuf[LZ4_COMPRESSBOUND(BLOCK_BYTES)];
-    size_t cmpBytes = 0;
-    /*const size_t readCount0 = read_int(inpFp, &cmpBytes);*/
+    int cmpBytes = 0;
     const size_t readCount0 = fread(&cmpBytes, sizeof(cmpBytes), 1, fp);
     if(readCount0 != 1 || cmpBytes <= 0) {
+      printf("lz4 readCount0: %zu, cmpBytes %d\n", readCount0, cmpBytes);
       break;
     }
 
-    /*const size_t readCount1 = read_bin(inpFp, cmpBuf, (size_t) cmpBytes);*/
+      printf("lz4 cmpBytes %d\n", cmpBytes);
     const size_t readCount1 = fread(cmpBuf,1,cmpBytes,fp);
-    if(readCount1 != (size_t) cmpBytes) {
+    if(readCount1 != cmpBytes) {
+      printf("lz4 readCount1: %zu, cmpBytes %d\n", readCount1, cmpBytes);
       break;
     }
 
@@ -135,14 +139,22 @@ size_t fread_lz4 (void *buf, size_t size, size_t count, FILE *fp) {
       int decBytes = LZ4_decompress_safe_continue(
           lz4StreamDecode, cmpBuf, decPtr, cmpBytes, BLOCK_BYTES);
       if(decBytes <= 0) {
+        printf("lz4 decBytes: %d\n", decBytes);
         break;
       }
-      /*write_bin(outFp, decPtr, (size_t) decBytes);*/
+      size_t required=offset+(size_t) decBytes;
+      while(required>BLOCK_BYTES*100*k) {
+        k=k+1;
+        buf=realloc(buf,BLOCK_BYTES*100*k);
+      }
       memcpy(buf+offset, decPtr, (size_t) decBytes);
       offset=offset+(size_t) decBytes;
     }
     decBufIndex = (decBufIndex + 1) % 2;
+    printf("lz4 k: %d\n", k);
   }
+  fclose(fp);
+  return fmemopen(buf, BLOCK_BYTES*100*k,"rw");
 }
 #endif
 
@@ -309,6 +321,9 @@ void byte_read(float *buf, int *n,int *ierr)
 {
   int flags;
   mode_t mode;
+#ifdef LZ4COMPRESSION
+  char key[] = "lid.re2";
+#endif
 
   if (*n<0)
     {printf("byte_read() :: n must be positive\n"); *ierr=1; return;}
@@ -327,6 +342,9 @@ void byte_read(float *buf, int *n,int *ierr)
 #ifdef LZ4COMPRESSION
      decBufIndex=0;
      LZ4_setStreamDecode(lz4StreamDecode,NULL,0);
+     if(strstr(name,key) == 0) {
+       fp=fopen_lz4(fp);
+     }
 #endif
   }
 
@@ -334,18 +352,7 @@ void byte_read(float *buf, int *n,int *ierr)
   {
      if (bytesw_read == 1)
         byte_reverse (buf,n,ierr);
-#ifdef LZ4COMPRESSION
-     char key[] = "lid.re2";
-     if(strstr(name,key) == 0) {
-       printf("here\n");
-       fread_lz4(buf,sizeof(float),*n,fp);
-     }
-     else {
-       fread(buf,sizeof(float),*n,fp);
-     }
-#else
      fread(buf,sizeof(float),*n,fp);
-#endif
      if (ferror(fp))
      {
        printf("ABORT: Error reading %s\n",name);
