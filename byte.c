@@ -153,6 +153,7 @@ FILE* fopen_lz4 (FILE *fp) {
     decBufIndex = (decBufIndex + 1) % 2;
     printf("lz4 k: %d\n", k);
   }
+  free(buf);
   fclose(fp);
   return fmemopen(buf, BLOCK_BYTES*100*k,"rw");
 }
