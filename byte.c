@@ -296,7 +296,6 @@ void byte_write(float *buf, int *n,int *ierr)
     LZ4_resetStream(lz4Stream);
 #endif
   }
-  printf("FLAG: %d\n", flag);
 
   if (flag==WRITE)
     {
