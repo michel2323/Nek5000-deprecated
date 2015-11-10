@@ -348,10 +348,14 @@ c     data    iflag,if_hyb  /.false. , .true. /
 
       if (param(100).ne.2) call set_fdm_prec_h1b(d,h1,h2,nelv)
 
+C      print *, 'TOLPS BEFORE', tolps
       call chktcg1(tolps,res,h1,h2,pmask,vmult,1,1)
-      if (param(21).gt.0.and.tolps.gt.abs(param(21))) 
-     $   tolps = abs(param(21))
-      if (istep.eq.0) tolps = 1.e-4
+C      if (param(21).gt.0.and.tolps.gt.abs(param(21))) 
+C     $   tolps = abs(param(21))
+        tolps = abs(param(21))
+C        tolps = 1.e-2
+C      if (istep.eq.2) tolps = 1.e-2
+C      print *, 'TOLPS AFTER: ', tolps
       tolpss = tolps
 c
       iconv = 0

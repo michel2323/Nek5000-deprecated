@@ -637,9 +637,12 @@ C
       CALL RZERO (BD,10)
       CALL SETBD (BD,DTLAG,NBD)
       NAB = 3
+      if(isetzero .eq. 1) NAB=0
+      WRITE (*,*) 'NAB: ', NAB
       IF (ISTEP.LE.2 .and. irst.le.0) NAB = ISTEP
       CALL RZERO   (AB,10)
       CALL SETABBD (AB,DTLAG,NAB,NBD)
+      if(isetzero .eq. 1) istep=3
       IF (IFMVBD) THEN
          NBDMSH = 1
          NABMSH = PARAM(28)
