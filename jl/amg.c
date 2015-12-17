@@ -15,6 +15,8 @@
 #include "crystal.h"
 #include "sarray_transfer.h"
 #include "gs.h"
+#include "amg_tools.h"
+#include "amg_setup.h"
 
 #define crs_setup PREFIXED_NAME(crs_setup)
 #define crs_solve PREFIXED_NAME(crs_solve)
@@ -25,7 +27,7 @@
 #  define AMG_BLOCK_ROWS 1200
 #endif
 
-static double get_time(void)
+/*static double get_time(void)
 {
 #ifdef GS_TIMING
   return comm_time();
@@ -41,14 +43,9 @@ static void barrier(const struct comm *c)
 #endif
 }
 
-/* sparse matrix, condensed sparse row */
-struct csr_mat {
-  uint rn, cn, *row_off, *col;
-  double *a;
-};
-
-/* z = alpha y + beta M x */
-static double apply_M(
+/* sparse matrix-vector product 
+   z = alpha y + beta M x */
+/*static double apply_M(
   double *z, const double alpha, const double *y,
   const double beta, const struct csr_mat *const M, const double *x)
 {
@@ -62,9 +59,10 @@ static double apply_M(
     *z++ = alpha*(*y++) + beta*t;
   }
   return get_time()-t0;
-}
+}*/
 
-/* z = M^t x */
+/* sparse transposed matrix-vector product 
+   z = M^t x */
 static double apply_Mt(
   double *const z, const struct csr_mat *const M, const double *x)
 {
@@ -80,9 +78,8 @@ static double apply_Mt(
   return get_time()-t0;
 }
 
-struct Q { uint nloc; struct gs_data *gsh; };
-
-/* ve = Q v */
+/* apply scatter operator Q 
+   ve = Q v */
 static double apply_Q(
   double *const ve, const struct Q *const Q, const double *const v,
   const struct comm *comm)
@@ -94,7 +91,8 @@ static double apply_Q(
   return get_time()-t0;
 }
 
-/* z := alpha y + beta Q^t x
+/* apply gather operator Q^t
+   z := alpha y + beta Q^t x
    (x := Q Q^t x   as a side effect)
  */
 static double apply_Qt(
@@ -110,23 +108,6 @@ static double apply_Qt(
   for(i=0;i<nloc;++i) *z++ = alpha*(*y++) + beta*(*x++);
   return t1;
 }
-
-struct crs_data {
-  struct comm comm;
-  struct gs_data *gs_top;
-  uint un, *umap; /* number of unique id's on this proc, map to user ids */
-  double tni; /* 1 / (total number of unique ids)  ... for computing mean */
-  int null_space;
-  unsigned levels;
-  unsigned *cheb_m; /* cheb_m  [levels-1] : smoothing steps */
-  double *cheb_rho; /* cheb_rho[levels-1] : spectral radius of smoother */
-  uint *lvl_offset;
-  double *Dff;      /* diagonal smoother, F-relaxation */
-  struct Q *Q_W, *Q_AfP, *Q_Aff;
-  struct csr_mat *W, *AfP, *Aff;
-  double *b, *x, *c, *c_old, *r, *buf;
-  double *timing; uint timing_n;
-};
 
 static void amg_exec(struct crs_data *const amg)
 {
@@ -189,7 +170,7 @@ void crs_solve(double *x, struct crs_data *data, double *b)
 {
   uint i; const uint un = data->un; const uint *const umap = data->umap;
   double *const ub = data->b, *const ux = data->x;
-  
+
   gs(b, gs_double,gs_add, 1, data->gs_top, 0);
   for(i=0;i<un;++i) ub[i]=b[umap[i]];
   
@@ -201,6 +182,7 @@ void crs_solve(double *x, struct crs_data *data, double *b)
   }
 
   for(i=0;i<un;++i) x[umap[i]]=ux[i];
+  
   gs(x, gs_double,gs_add, 0, data->gs_top, 0);
 }
 
@@ -230,9 +212,6 @@ void crs_stats(const struct crs_data *const data)
   ==========================================================================*/
 
 
-/* remote id - designates the i-th uknown owned by proc p */
-struct rid { uint p,i; };
-
 /* the data for each id to be read from amg.dat */
 struct id_data {
   double D;
@@ -243,42 +222,7 @@ struct id_data {
 /* global non-zero (matrix entry) */
 struct gnz { ulong i,j; double a; };
 
-/*
-  The user ids   id[n]   are assigned to unique procs.
-  
-  Output
-    uid --- ulong array; uid[0 ... uid.n-1]  are the ids owned by this proc
-    rid_map --- id[i] is uid[ rid_map[i].i ] on proc rid_map[i].p
-    map = assign_dofs(...) --- uid[i] is id[map[i]]
 
-    map is returned only when rid_map is null, and vice versa
-*/
-static uint *assign_dofs(struct array *const uid,
-                         struct rid *const rid_map,
-                         const ulong *const id, const uint n,
-                         const uint p,
-                         struct gs_data *gs_top, buffer *const buf)
-{
-  uint i,count, *map=0;
-  struct rid *const rid = rid_map?rid_map:tmalloc(struct rid,n);
-  for(i=0;i<n;++i) rid[i].p=p, rid[i].i=i;
-  gs_vec(n?&rid[0].p:0,2, gs_sint,gs_add,0, gs_top,buf);
-  for(count=0,i=0;i<n;++i) {
-    if(rid[i].i==i && id[i]!=0 && rid[i].p==p) ++count; }
-  array_init(ulong,uid,count); uid->n=count;
-  if(rid_map==0) {
-    map=tmalloc(uint,count); 
-    for(count=0,i=0;i<n;++i) {
-      if(rid[i].i==i && id[i]!=0 && rid[i].p==p) map[count++]=i; }
-  }
-  { ulong *const uid_p = uid->ptr;
-    for(count=0,i=0;i<n;++i) if(rid[i].i==i && id[i]!=0 && rid[i].p==p)
-        uid_p[count]=id[i], rid[i].i=count, ++count;
-  }
-  if(rid_map) gs_vec(n?&rid[0].p:0,2, gs_sint,gs_add,0, gs_top,buf);
-  else free(rid);
-  return map;
-}
 
 static void localize_rows(struct gnz *p, uint nz,
   const ulong *const uid, const uint *const id_perm)
@@ -390,6 +334,7 @@ static uint amg_setup_mats(
       csr_mat[m][lvl].a = a, a += nz;
     }
   }
+
   for(lvl=0;lvl<levels-1;++lvl) {
     uint i; const uint j0=off[lvl+1], nloc = off[levels]-j0;
     slong *p = array_reserve(slong, &ide, nloc);
@@ -407,6 +352,10 @@ static uint amg_setup_mats(
     data->Q_AfP[lvl].gsh = gs_setup(ide.ptr,ide.n, &data->comm, 0,gs_auto,1);
     if(ide.n>max_e) max_e=ide.n;
   }
+
+//  fclose(fp);
+
+
   for(lvl=0;lvl<levels-1;++lvl) {
     uint i; const uint j0=off[lvl], nloc = off[lvl+1]-j0;
     slong *p = array_reserve(slong, &ide, nloc);
@@ -417,8 +366,9 @@ static uint amg_setup_mats(
                   (struct gnz*)mat[2].ptr + mat_off[2][lvl],
                   mat_off[2][lvl+1]-mat_off[2][lvl], buf);
     data->Q_Aff[lvl].gsh = gs_setup(ide.ptr,ide.n, &data->comm, 0,gs_auto,1);
-    if(ide.n>max_e) max_e=ide.n;
+    if(ide.n>max_e) max_e=ide.n;  
   }
+
   free(mat_off[0]);
   array_free(&ide);
   return max_e;
@@ -538,6 +488,9 @@ struct crs_data *crs_setup(
   data->gs_top = gs_setup((const slong*)id,n, &data->comm, 1,
     dump?gs_crystal_router:gs_auto, !dump);
 
+  amg_setup(n, id, nz, Ai, Aj, A, data);
+  die(0);
+   
   if(dump) {
     amg_dump(n,id,nz,Ai,Aj,A,data);
     gs_free(data->gs_top);
@@ -551,6 +504,7 @@ struct crs_data *crs_setup(
     data->null_space = null_space;
     amg_setup_aux(data, n,id);
   }
+
   return data;
 }
 
@@ -990,107 +944,6 @@ static void read_data(
   
   ==========================================================================*/
 
-
-enum mat_order { row_major, col_major };
-enum distr { row_distr, col_distr };
-
-#define rid_equal(a,b) ((a).p==(b).p && (a).i==(b).i)
-
-/* rnz is a mnemonic for remote non zero */
-struct rnz {
-  double v; struct rid i,j;
-};
-#define nz_pos_equal(a,b) \
-  (rid_equal((a).i,(b).i) && rid_equal((a).j,(b).j))
-
-static void mat_sort(struct array *const mat,
-                     const enum mat_order order, buffer *const buf)
-{
-  switch(order) {
-  case col_major: sarray_sort_4(struct rnz,mat->ptr,mat->n,
-                                j.p,0,j.i,0, i.p,0,i.i,0, buf); break;
-  case row_major: sarray_sort_4(struct rnz,mat->ptr,mat->n,
-                                i.p,0,i.i,0, j.p,0,j.i,0, buf); break;
-  }
-}
-
-/* assumes matrix is already sorted */
-static void mat_condense_sorted(struct array *const mat)
-{
-  struct rnz *dst,*src, *const end=(struct rnz*)mat->ptr+mat->n;
-  if(mat->n<=1) return;
-  for(dst=mat->ptr;;++dst) {
-    if(dst+1==end) return;
-    if(nz_pos_equal(dst[0],dst[1])) break;
-  }
-  for(src=dst+1;src!=end;++src) {
-    if(nz_pos_equal(*dst,*src))
-      dst->v += src->v;
-    else
-      *(++dst) = *src;
-  }
-  mat->n = (dst+1)-(struct rnz*)mat->ptr;
-}
-
-static void mat_condense(
-  struct array *const mat, const enum mat_order order, buffer *const buf)
-{
-  mat_sort(mat,order,buf); mat_condense_sorted(mat);
-}
-
-static void mat_distribute(
-  struct array *const mat, const enum distr d, const enum mat_order o,
-  struct crystal *const cr)
-{
-  switch(d) {
-  case row_distr: mat_condense(mat,row_major,&cr->data);
-                  sarray_transfer(struct rnz,mat, i.p,0, cr); break;
-  case col_distr: mat_condense(mat,col_major,&cr->data);
-                  sarray_transfer(struct rnz,mat, j.p,0, cr); break;
-  }
-  mat_condense(mat,o,&cr->data);
-}
-
-struct labelled_rid {
-  struct rid rid; ulong id;
-};
-
-static void mat_list_nonlocal_sorted(
-  struct array *const nonlocal_id,
-  const struct array *const mat, const enum distr d,
-  const ulong *uid, struct crystal *const cr)
-{
-  const uint pid = cr->comm.id;
-  struct rid last_rid;
-  const struct rnz *p, *const e=(const struct rnz*)mat->ptr+mat->n;
-  uint count; struct labelled_rid *out, *end;
-  #define BUILD_LIST(k) do { \
-    last_rid.p=-(uint)1,last_rid.i=-(uint)1; \
-    for(count=0,p=mat->ptr;p!=e;++p) { \
-      if(p->k.p==pid || rid_equal(last_rid,p->k)) continue; \
-      last_rid=p->k; ++count; \
-    } \
-    array_init(struct labelled_rid, nonlocal_id, count); \
-    nonlocal_id->n=count; out=nonlocal_id->ptr; \
-    last_rid.p=-(uint)1,last_rid.i=-(uint)1; \
-    for(p=mat->ptr;p!=e;++p) { \
-      if(p->k.p==pid || rid_equal(last_rid,p->k)) continue; \
-      (out++)->rid=last_rid=p->k; \
-    } \
-  } while(0)
-  switch(d) {
-    case row_distr: BUILD_LIST(j); break;
-    case col_distr: BUILD_LIST(i); break;
-  }
-  #undef BUILD_LIST
-  sarray_transfer(struct labelled_rid,nonlocal_id,rid.p,1,cr);
-  for(out=nonlocal_id->ptr,end=out+nonlocal_id->n;out!=end;++out)
-    out->id=uid[out->rid.i];
-  sarray_transfer(struct labelled_rid,nonlocal_id,rid.p,1,cr);
-  sarray_sort_2(struct labelled_rid,nonlocal_id->ptr,nonlocal_id->n,
-                rid.p,0, rid.i,0, &cr->data);
-}
-
 static void mat_list_nonlocal(
   struct array *const nonlocal_id,
   struct array *const mat, const enum distr d,
@@ -1116,7 +969,7 @@ static uint dump_matrix_setdata(
   
   mat_distribute(mat,row_distr,col_major,cr);
   n = mat->n;
-
+  
   mat_list_nonlocal_sorted(&nonlocal_id,mat,row_distr,uid,cr);
   
   buffer_reserve(buf,3*n*sizeof(double));
@@ -1203,7 +1056,7 @@ static void amg_dump(
 
   crystal_init(&cr, &data->comm);
   assign_dofs(&uid,rid_map, id,n,data->comm.id,data->gs_top,&cr.data);
-
+  
   array_init(struct rnz,&mat,nz);
   for(out=mat.ptr,k=0;k<nz;++k) {
     uint i=Ai[k], j=Aj[k]; double a=A[k];

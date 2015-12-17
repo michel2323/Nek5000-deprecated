@@ -74,7 +74,7 @@ endif
 
 # JL CRS GRID SOLVER
 ifeq ($(IFAMG),true)
-CGS := $(JO)amg.o $(JO)fcrs.o
+CGS := $(JO)amg_tools.o $(JO)amg_setup.o $(JO)amg.o $(JO)fcrs.o
 else
 CGS = $(JO)sparse_cholesky.o $(JO)xxt.o $(JO)fcrs.o
 endif
@@ -282,6 +282,8 @@ $(OBJDIR)/$(JO)gs_local.o        :$(J)/gs_local.c;        $(CC) -c $(cFL2) $(JL)
 $(OBJDIR)/$(JO)fcrs.o            :$(J)/fcrs.c;            $(CC) -c $(cFL2) $(JL) $< -o $@
 $(OBJDIR)/$(JO)xxt.o             :$(J)/xxt.c;             $(CC) -c $(cFL2) $(JL) $< -o $@
 $(OBJDIR)/$(JO)sparse_cholesky.o :$(J)/sparse_cholesky.c; $(CC) -c $(cFL2) $(JL) $< -o $@
+$(OBJDIR)/$(JO)amg_tools.o       :$(J)/amg_tools.c;       $(CC) -c $(cFL2) $(JL) $< -o $@
+$(OBJDIR)/$(JO)amg_setup.o       :$(J)/amg_setup.c;       $(CC) -c $(cFL2) $(JL) $< -o $@
 $(OBJDIR)/$(JO)amg.o             :$(J)/amg.c;             $(CC) -c $(cFL2) $(JL) $< -o $@
 $(OBJDIR)/$(JO)findpts.o         :$(J)/findpts.c;         $(CC) -c $(cFL2) $(JL) $< -o $@
 $(OBJDIR)/$(JO)findpts_local.o   :$(J)/findpts_local.c;   $(CC) -c $(cFL2) $(JL) $< -o $@
