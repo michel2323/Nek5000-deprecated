@@ -27,9 +27,9 @@
     - Author of the original version (Matlab): James Lottes
     - Author of the parallel version: Nicolas Offermans
 
-    - Last update: 10 December, 2015
+    - Last update: 16 December, 2015
 
-    - Status: developing function interp(...) from cinterp.c.
+    - Status: developing function interp(...) based cinterp.c from MAtlab.
 
 */
 
@@ -335,31 +335,13 @@ void amg_setup(uint n, const ulong *id, uint nz_unassembled, const uint *Ai,
     init_array(data->timing, 6*(slevel-1), 0.);
 
 /* Free */
-    // Free A
-    free(A->row_off);
-    free(A->col);
-    free(A->a);
-    free(A);
-    // Free Af
-    free(Af->row_off);
-    free(Af->col);
-    free(Af->a);
-    free(Af);
-    // Free Afc
-    free(Afc->row_off);
-    free(Afc->col);
-    free(Afc->a);
-    free(Afc);
-    // Free Ac
-    free(Ac->row_off);
-    free(Ac->col);
-    free(Ac->a);
-    free(Ac);
-    // Free W
-    //free(W->row_off);
-    //free(W->col);
-    //free(W->a);
-    //free(W);
+    // Free csr matrices
+    csr_free(&A);
+    csr_free(&Af);
+    csr_free(&Afc);
+    csr_free(&Ac);
+    //csr_free(&W);
+
     // Free arrays
     free(vc);
     free(gs_id);
@@ -368,13 +350,12 @@ void amg_setup(uint n, const ulong *id, uint nz_unassembled, const uint *Ai,
     free(af);
     free(s);
     free(D);
+
     // Free gs
     gs_free(gsh);
     gs_free(gsh_f);
     gs_free(gsh_c);
     gs_free(gsh_single);
-
-
 }
 
 /* Interpolation */
@@ -435,9 +416,9 @@ void interpolation(struct csr_mat *W, struct csr_mat *Af, struct csr_mat *Ac,
     diagcsr_op(ArD, Dfinv, dmult);
     diagcsr_op(ArD, Dcinv, multd);
 
+    // Minimum interpolation skeleton
     struct csr_mat *W_skel = tmalloc(struct csr_mat, 1);
     min_skel(W_skel, ArD);
-
 
     // Initialize eigenvalues array and matrix W0
     double *lam = tmalloc(double, rnf);
@@ -1719,6 +1700,19 @@ void copy_csr(struct csr_mat *B, struct csr_mat *A)
     memcpy(B->row_off, A->row_off, (A->rn+1)*sizeof(uint));
     memcpy(B->col, A->col, (nnz)*sizeof(uint));
     memcpy(B->a, A->a, (nnz)*sizeof(double));
+}
+
+/* Free csr matrices */
+void csr_free(struct csr_mat **A)
+{
+     if (A) 
+    {
+        free((*A)->row_off);
+        free((*A)->col);
+        free((*A)->a);
+        free(*A);
+        *A = NULL;
+     }
 }
 
 /* Build sparse matrix using the csr format
