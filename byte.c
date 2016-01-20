@@ -322,7 +322,7 @@ void byte_read(float *buf, int *n,int *ierr)
   int flags;
   mode_t mode;
 #ifdef LZ4COMPRESSION
-  char key[] = "re2";
+  char key[] = ".re2";
 #endif
 
   if (*n<0)
