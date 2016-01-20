@@ -70,6 +70,7 @@ static char inpBuf[2][BLOCK_BYTES];
 static int inpBufIndex=0;
 static char decBuf[2][BLOCK_BYTES];
 static int  decBufIndex = 0;
+static void *decStream = NULL; 
 #endif
 /*************************************byte.c***********************************/
 
@@ -117,7 +118,7 @@ size_t fwrite_lz4 (const void *buf, size_t size, size_t count, FILE *fp) {
 FILE* fopen_lz4 (FILE *fp) {
   size_t offset=0;
   int k=1;
-  void *buf=malloc(BLOCK_BYTES*100);
+  decStream=malloc(BLOCK_BYTES*100);
   for(;;) {
     char cmpBuf[LZ4_COMPRESSBOUND(BLOCK_BYTES)];
     int cmpBytes = 0;
@@ -145,17 +146,16 @@ FILE* fopen_lz4 (FILE *fp) {
       size_t required=offset+(size_t) decBytes;
       while(required>BLOCK_BYTES*100*k) {
         k=k+1;
-        buf=realloc(buf,BLOCK_BYTES*100*k);
+        decStream=realloc(decStream,BLOCK_BYTES*100*k);
       }
-      memcpy(buf+offset, decPtr, (size_t) decBytes);
+      memcpy(decStream+offset, decPtr, (size_t) decBytes);
       offset=offset+(size_t) decBytes;
     }
     decBufIndex = (decBufIndex + 1) % 2;
     printf("lz4 k: %d\n", k);
   }
-  free(buf);
   fclose(fp);
-  return fmemopen(buf, BLOCK_BYTES*100*k,"rw");
+  return fmemopen(decStream, BLOCK_BYTES*100*k,"rw");
 }
 #endif
 
@@ -257,6 +257,11 @@ void byte_close(int *ierr)
     *ierr=1;
     return;
   }
+#ifdef LZ4COMPRESSION
+  else if(flag==READ) {
+    free(decStream);
+  }
+#endif
 
   fp=NULL;
   *ierr=0;
