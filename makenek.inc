@@ -7,17 +7,18 @@ echo "makenek - automatic build tool for Nek5000"
 
 if [ "$PPLIST" == "?" ]; then
   echo "available pre-processor symbols:" 
-  echo "  NOTIMER   disable runtime statistics"
-  echo "  MPITIMER  enable MPI runtime statistics"
-  echo "  MPIIO     use MPI-IO I/O kernel (experimental)"
-  echo "  BG        enable Blue Gene optimizations (BG/L and BG/P)"
-  echo "  K10_MXM   use optimized MxM kernel for AMD Family 10h processors" 
-  echo "  CVODE     use ODE solver from Sundials to solve for IFIELD>1 (experimental)"
-  echo "  MOAB      enable MOAB/CUBIT support (experimental)"
-  echo "  NEKNEK    enable multidomain support (experimental)"
-  echo "  NO_LAPACK disable nek-supplied LAPACK routines"
-  echo "  BLAS_MXM  disable nek-supplied BLAS routines"
-  echo "  EXTBAR    adds underscore to exit call(for BGQ)"
+  echo "  NOTIMER       disable runtime statistics"
+  echo "  MPITIMER      enable MPI runtime statistics"
+  echo "  MPIIO         use MPI-IO I/O kernel (experimental)"
+  echo "  BG            enable Blue Gene optimizations (BG/L and BG/P)"
+  echo "  K10_MXM       use optimized MxM kernel for AMD Family 10h processors" 
+  echo "  CVODE         use ODE solver from Sundials to solve for IFIELD>1 (experimental)"
+  echo "  MOAB          enable MOAB/CUBIT support (experimental)"
+  echo "  NEKNEK        enable multidomain support (experimental)"
+  echo "  NO_LAPACK     disable nek-supplied LAPACK routines"
+  echo "  BLAS_MXM      disable nek-supplied BLAS routines"
+  echo "  EXTBAR        adds underscore to exit call(for BGQ)"
+  echo "  LZ4_COMM_COMP lossless compression of output using lz4"
   exit 1
 fi
 
@@ -61,6 +62,7 @@ echo "CMT root" $SOURCE_ROOT_CMT
 
 IFMOAB=false
 IFNEKNEK=false
+IFLZ4=false
 
 # do some basic checks
 if [ "$CASEDIR" == "$SOURCE_ROOT" ]; then
@@ -292,6 +294,10 @@ if [ "$i" == "NEKNEK" ]; then
      IFNEKNEK=true
 fi
 
+if [ "$i" == "LZ4_COMM_COMPRESSION" ]; then
+     IFLZ4=true
+fi
+
    if [ "$i" == "CVODE" ]; then
     if [ "$CVODE_DIR" == "" ]; then
        echo "ABORT: Please specify path to CVODE in CVODE_DIR!" 
@@ -416,6 +422,7 @@ sed -e "s:^F77[ ]*=.*:F77\:=$F77:" \
 -e "s/^IFMOAB[ ]*=.*/IFMOAB:=$IFMOAB/" \
 -e "s:^MOAB_DIR[ ]*=.*:MOAB_DIR\:=${MOAB_DIR}:" \
 -e "s/^IFNEKNEK[ ]*=.*/IFNEKNEK:=$IFNEKNEK/" \
+-e "s/^IFLZ4[ ]*=.*/IFLZ4:=$IFLZ4/" \
 -e "s:^USR[ ]*=.*:USR\:=$USR:" \
 -e "s:^USR_LFLAGS[ ]*=.*:USR_LFLAGS\:=$USR_LFLAGS:" \
 -e "s:^S[ ]*=.*:S\:=${SOURCE_ROOT}:" \

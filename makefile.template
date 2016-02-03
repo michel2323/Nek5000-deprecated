@@ -12,6 +12,7 @@ IFCMT=
 IFAMG= 
 IFAMG_DUMP=
 IFNEKNEK=
+IFLZ4=
 IFMOAB=
 MOAB_DIR=
 F77=
@@ -89,6 +90,10 @@ ifeq ($(IFMPI),false)
   COMM_MPI := ${COMM_MPI} mpi_dummy.o
 endif
 
+ifeq ($(IFLZ4),true)
+  LZ4_COMP := lz4.o
+endif
+
 # IFCMT append *.o files to CORE
 CMTCORE := drive1_cmt.o drive2_cmt.o driver3_cmt.o \
  face.o ausm.o  MixtPerf.o intpdiff.o diffusive_cmt.o eqnsolver_cmt.o surface_fluxes.o \
@@ -115,7 +120,7 @@ else
 	DUMMY:= $(shell rm -rf $S/mpif.h) 
 endif
 
-TMP1 = $(CORE) $(CMTCORE) $(MXM) $(USR) $(MOABO) $(COMM_MPI) $(NEKNEKO) $(VISITO) $(LPACK)
+TMP1 = $(CORE) $(CMTCORE) $(LZ4_COMP) $(MXM) $(USR) $(MOABO) $(COMM_MPI) $(NEKNEKO) $(VISITO) $(LPACK)
 NOBJS_F = $(patsubst %,$(OBJDIR)/%,$(TMP1))
 TMP2 = $(JLCORE) $(JLINTP) $(CGS) 
 NOBJS_C = $(patsubst %,$(OBJDIR)/%,$(TMP2))
@@ -268,6 +273,7 @@ $(OBJDIR)/bg_mxm44_uneven.o :$S/bg_mxm44_uneven.s;	$(CC) -c $< -o $@
 # C Files ##################################################################################
 $(OBJDIR)/nek_comm.o             :$S/nek_comm.c;          $(CC) -c $(cFL2) $(JL) $< -o $@
 $(OBJDIR)/byte.o                 :$S/byte.c;              $(CC) -c $(cFL2) $(JL) $< -o $@
+$(OBJDIR)/lz4.o                  :$S/lz4.c;               $(CC) -c $(cFL2) $(JL) $< -o $@
 $(OBJDIR)/chelpers.o             :$S/chelpers.c;          $(CC) -c $(cFL2) $(JL) $< -o $@
 $(OBJDIR)/$(JO)fail.o            :$(J)/fail.c;            $(CC) -c $(cFL2) $(JL) $< -o $@
 $(OBJDIR)/$(JO)tensor.o          :$(J)/tensor.c;          $(CC) -c $(cFL2) $(JL) $< -o $@
