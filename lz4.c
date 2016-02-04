@@ -56,6 +56,7 @@ void lz4_pack(const void * const in, const int * const size, void * const out, i
   int i=0;
 
   size_t ccount=0; // Bytes in the chunk to be compressed. This is BLOCK_BYTES besides for the last chunk
+  LZ4_resetStream(lz4Stream);
   if(*size<0 || out==NULL || *size<0 ) {
     printf("Error in Nek LZ4 compression\n");
     return;
@@ -102,6 +103,8 @@ void lz4_pack(const void * const in, const int * const size, void * const out, i
 void lz4_unpack(void * in, const size_t * const compSize, void * const out, const int * const size, const int * const ierr) {
   size_t offset=0;
   size_t offset_in=0;
+  decBufIndex=0;
+  LZ4_setStreamDecode(lz4StreamDecode,NULL,0);
   for(;;) {
     char cmpBuf[LZ4_COMPRESSBOUND(BLOCK_BYTES)];
     int cmpBytes = 0;
