@@ -7,7 +7,7 @@ static LZ4_stream_t* lz4Stream=&lz4Stream_body;
 static LZ4_streamDecode_t lz4StreamDecode_body;
 static LZ4_streamDecode_t* lz4StreamDecode = &lz4StreamDecode_body;
 enum {
-  BLOCK_BYTES = 128
+  BLOCK_BYTES = 8*1024
 };
 static char inpBuf[2][BLOCK_BYTES];
 static int inpBufIndex=0;
@@ -61,9 +61,9 @@ void lz4_pack(const void * const in, const int * const size, void * const out, i
     printf("Error in Nek LZ4 compression\n");
     return;
   }
-  printf("size: %d\n", *size);
+  /*printf("size: %d\n", *size);*/
   size_t lcount=(size_t) *size; // Bytes left to be compressed
-  printf("lcount: %zu\n", lcount);
+  /*printf("lcount: %zu\n", lcount);*/
   size_t offset=0;
   *compSize=0;
   while (lcount > 0) {
@@ -73,11 +73,11 @@ void lz4_pack(const void * const in, const int * const size, void * const out, i
     else {
       ccount=BLOCK_BYTES;
     }
-    printf("offset: %zu\n",offset);
-    printf("ccount: %zu\n",ccount);
+    /*printf("offset: %zu\n",offset);*/
+    /*printf("ccount: %zu\n",ccount);*/
     char* const inpPtr = inpBuf[inpBufIndex];
     memcpy(inpPtr, in+offset, ccount);
-    printf("i: %d\n",i);
+    /*printf("i: %d\n",i);*/
     {
       char cmpBuf[LZ4_COMPRESSBOUND(BLOCK_BYTES)];
       const int cmpBytes = LZ4_compress_fast_continue(
@@ -85,8 +85,8 @@ void lz4_pack(const void * const in, const int * const size, void * const out, i
       if(cmpBytes <= 0) {
         break;
       }
-      printf("cmpBytes: %d\n",cmpBytes);
-      printf("compSize: %d\n",*compSize);
+      /*printf("cmpBytes: %d\n",cmpBytes);*/
+      /*printf("compSize: %d\n",*compSize);*/
       memcpy(out+*compSize, &cmpBytes, sizeof(cmpBytes));
       memcpy(out+*compSize+sizeof(cmpBytes), &cmpBuf, cmpBytes);
       *compSize=*compSize+cmpBytes+sizeof(cmpBytes);
@@ -94,10 +94,10 @@ void lz4_pack(const void * const in, const int * const size, void * const out, i
     inpBufIndex = (inpBufIndex + 1) % 2;
     lcount=lcount-ccount;
     offset=offset+ccount;
-    printf("----------------------\n");
+    /*printf("----------------------\n");*/
     i=i+1;
   }
-  printf("compSize in C: %d\n", *compSize);
+  /*printf("compSize in C: %d\n", *compSize);*/
 }
 
 void lz4_unpack(void * in, const size_t * const compSize, void * const out, const int * const size, const int * const ierr) {
@@ -108,33 +108,33 @@ void lz4_unpack(void * in, const size_t * const compSize, void * const out, cons
   for(;;) {
     char cmpBuf[LZ4_COMPRESSBOUND(BLOCK_BYTES)];
     int cmpBytes = 0;
-    printf("offset_in+sizeof(cmpBytes): %d\n",offset_in+sizeof(cmpBytes));
-    printf("compSize: %d\n",*compSize);
+    /*printf("offset_in+sizeof(cmpBytes): %d\n",offset_in+sizeof(cmpBytes));*/
+    /*printf("compSize: %d\n",*compSize);*/
     int tmp=offset_in+sizeof(cmpBytes);
-    printf("tmp: %d\n", tmp);
-    printf("compSize: %d\n", *compSize);
+    /*printf("tmp: %d\n", tmp);*/
+    /*printf("compSize: %d\n", *compSize);*/
     if(tmp > (int) *compSize) {
       break;
     }
     memcpy(&cmpBytes, in+offset_in, sizeof(cmpBytes));
-    printf("cmpBytes: %d\n",cmpBytes);
+    /*printf("cmpBytes: %d\n",cmpBytes);*/
     if(cmpBytes <= 0) {
-      printf("cmpBytes %d\n", cmpBytes);
+      /*printf("cmpBytes %d\n", cmpBytes);*/
       break;
     }
 
-    printf("lz4 cmpBytes %d\n", cmpBytes);
+    /*printf("lz4 cmpBytes %d\n", cmpBytes);*/
     memcpy(&cmpBuf, in+offset_in+sizeof(cmpBytes), cmpBytes);
     const size_t readCount1=0;
     offset_in=offset_in+sizeof(cmpBytes)+cmpBytes;
-    printf("new offset_in: %zu\n", offset_in);
+    /*printf("new offset_in: %zu\n", offset_in);*/
 
     {
       char* decPtr = decBuf[decBufIndex];
       int decBytes = LZ4_decompress_safe_continue(
           lz4StreamDecode, cmpBuf, decPtr, cmpBytes, BLOCK_BYTES);
       if(decBytes <= 0) {
-        printf("lz4 decBytes: %d\n", decBytes);
+        /*printf("lz4 decBytes: %d\n", decBytes);*/
         break;
       }
       memcpy(out+offset, decPtr, (size_t) decBytes);
