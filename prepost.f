@@ -2175,9 +2175,14 @@ c-----------------------------------------------------------------------
 
       common /SCRNS/ u4(2+lxo*lxo*lxo*2*lelt)
       real*4         u4
+#ifdef LZ4_COMM_COMPRESSION
+      common /SCRNS/ u4_comp(2+lxo*lxo*lxo*2*lelt)
+      real*4         u4_comp
+#endif
       real*8         u8(1+lxo*lxo*lxo*1*lelt)
       equivalence    (u4,u8)
 
+      integer sizein, sizeout
       integer e
 
       call nekgsync() ! clear outstanding message queues.
@@ -2202,31 +2207,61 @@ c-----------------------------------------------------------------------
              call copy   (u8,u,ntot)
          endif
          nout = wdsizo/4 * ntot
-         if(ierr.eq.0) 
+         if(ierr.eq.0) then 
+#ifdef LZ4_COMM_COMPRESSION
+           sizein=nout*4
+           sizeout=0
+           leo_comp=0
+           call lz4_pack(u4, sizein, u4_comp, sizeout, ierr)
+           print *, 'Compressed output s field from ', sizein, ' to ',
+     $               (sizeout+4)/4, '.'
+           call byte_write(u4_comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
+           call byte_write(sizeout,1,ierr)          ! u4 :=: u8
+#else
 #ifdef MPIIO
      &     call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
 #else
      &     call byte_write(u4,nout,ierr)          ! u4 :=: u8
 #endif
+#endif
+         endif
 
          ! write out the data of my childs
          idum  = 1
          do k=pid0+1,pid1
             mtype = k
+#ifdef LZ4_COMM_COMPRESSION
+            call csend(mtype,idum,4,k,0)       ! handshake
+            call crecv(mtype,leo_comp,4)
+            call crecv(mtype,u4,len)
+            nout = (leo_comp+4)/4 ! bytes devided by size of float (SP)
+            print *, 'leo_comp on 0: ', nout
+#else
             call csend(mtype,idum,4,k,0)       ! handshake
             call crecv(mtype,u4,len)
+#endif
             nout  = wdsizo/4 * nxyz * u8(1)
             if (wdsizo.eq.4.and.ierr.eq.0) then
+#ifdef LZ4_COMM_COMPRESSION
+               call byte_write(u4(1),nout,ierr)
+               call byte_write(leo_comp,1,ierr)
+#else
 #ifdef MPIIO
                call byte_write_mpi(u4(3),nout,-1,ifh_mbyte,ierr)
 #else
                call byte_write(u4(3),nout,ierr)
 #endif
+#endif
             elseif(ierr.eq.0) then
+#ifdef LZ4_COMM_COMPRESSION
+               call byte_write(u8(1),nout,ierr)
+               call byte_write(leo_comp,1,ierr)
+#else
 #ifdef MPIIO
                call byte_write_mpi(u8(2),nout,-1,ifh_mbyte,ierr)
 #else
                call byte_write(u8(2),nout,ierr)
+#endif
 #endif
             endif
          enddo
@@ -2241,8 +2276,19 @@ c-----------------------------------------------------------------------
          endif
 
          mtype = nid
+#ifdef LZ4_COMM_COMPRESSION
+C         leo_comp=leo
+C         No need for nel in u4(1)
+         call lz4_pack(u4(3), leo-1, u4_comp, leo_comp, ierr)
+         call crecv(mtype,idum,4)            ! hand-shake
+         print *, 'leo: ', leo
+         print *, 'leo_comp: ', leo_comp
+         call csend(mtype,leo_comp,4,pid0,0)     ! u4 :=: u8
+         call csend(mtype,u4_comp,leo_comp,pid0,0)     ! u4 :=: u8
+#else
          call crecv(mtype,idum,4)            ! hand-shake
          call csend(mtype,u4,leo,pid0,0)     ! u4 :=: u8
+#endif
 
       endif
 
@@ -2263,10 +2309,15 @@ c-----------------------------------------------------------------------
 
       common /SCRNS/ u4(2+lxo*lxo*lxo*6*lelt)
       real*4         u4
+#ifdef LZ4_COMM_COMPRESSION
+      common /SCRNS/ u4_comp(2+lxo*lxo*lxo*2*lelt)
+      real*4         u4_comp
+#endif
       real*8         u8(1+lxo*lxo*lxo*3*lelt)
       equivalence    (u4,u8)
 
       integer e
+      integer sizein, sizeout
 
       call nekgsync() ! clear outstanding message queues.
       if(mx.gt.lxo .or. my.gt.lxo .or. mz.gt.lxo) then
@@ -2306,30 +2357,60 @@ c-----------------------------------------------------------------------
              enddo
          endif
          nout = wdsizo/4 * ndim*nel * nxyz
-         if(ierr.eq.0) 
-#ifdef MPIIO
-     &     call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
+         if(ierr.eq.0) then
+#ifdef LZ4_COMM_COMPRESSION
+           sizein=nout*4
+           sizeout=0
+           leo_comp=0
+           call lz4_pack(u4, sizein, u4_comp, sizeout, ierr)
+           print *, 'Compressed output v field from ', sizein, ' to ',
+     $               (sizeout+4)/4, '.'
+           call byte_write(u4_comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
+           call byte_write(sizeout,1,ierr)          ! u4 :=: u8
 #else
-     &     call byte_write(u4,nout,ierr)          ! u4 :=: u8
+#ifdef MPIIO
+           call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
+#else
+           call byte_write(u4,nout,ierr)          ! u4 :=: u8
 #endif
+#endif
+         endif
          ! write out the data of my childs
          do k=pid0+1,pid1
             mtype = k
+#ifdef LZ4_COMM_COMPRESSION
+            call csend(mtype,idum,4,k,0)       ! handshake
+            call crecv(mtype,leo_comp,4)
+            call crecv(mtype,u4,len)
+            nout = (leo_comp+4)/4 ! bytes devided by size of float (SP)
+            print *, 'leo_comp on 0: ', nout
+#else
             call csend(mtype,idum,4,k,0)           ! handshake
             call crecv(mtype,u4,len)
             nout  = wdsizo/4 * ndim*nxyz * u8(1)
+#endif
 
             if (wdsizo.eq.4.and.ierr.eq.0) then
+#ifdef LZ4_COMM_COMPRESSION
+               call byte_write(u4(1),nout,ierr)
+               call byte_write(leo_comp,1,ierr)
+#else
 #ifdef MPIIO
                call byte_write_mpi(u4(3),nout,-1,ifh_mbyte,ierr)
 #else
                call byte_write(u4(3),nout,ierr)
 #endif
+#endif
             elseif(ierr.eq.0) then
+#ifdef LZ4_COMM_COMPRESSION
+               call byte_write(u8(1),nout,ierr)
+               call byte_write(leo_comp,1,ierr)
+#else
 #ifdef MPIIO
                call byte_write_mpi(u8(2),nout,-1,ifh_mbyte,ierr)
 #else
                call byte_write(u8(2),nout,ierr)
+#endif
 #endif
             endif
          enddo
@@ -2363,8 +2444,19 @@ c-----------------------------------------------------------------------
          endif
 
          mtype = nid
+#ifdef LZ4_COMM_COMPRESSION
+C         leo_comp=leo
+C         No need for nel in u4(1)
+         call lz4_pack(u4(3), leo-1, u4_comp, leo_comp, ierr)
+         call crecv(mtype,idum,4)            ! hand-shake
+         print *, 'leo: ', leo
+         print *, 'leo_comp: ', leo_comp
+         call csend(mtype,leo_comp,4,pid0,0)     ! u4 :=: u8
+         call csend(mtype,u4_comp,leo_comp,pid0,0)     ! u4 :=: u8
+#else
          call crecv(mtype,idum,4)            ! hand-shake
          call csend(mtype,u4,leo,pid0,0)     ! u4 :=: u8
+#endif
 
       endif
 
