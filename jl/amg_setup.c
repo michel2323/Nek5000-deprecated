@@ -29,14 +29,14 @@
 
     - Last update: 16 December, 2015
 
-    - Status: developing function interp(...) based cinterp.c from MAtlab.
+    - Status: developing function interp(...) based cinterp.c from Matlab.
 
 */
 
 /*
     REMARKS:
-        - at some point in the Matlab code, conj(Af) is used. A priori, 
-          the matrices A or Af should never be complex so we ignored this
+        - at some point in the Matlab code, conj(Af) is used. If I am right, 
+          the matrices A or Af should never be complex so I ignored this
           operation in this code. This should be checked though!
 
         - in function interpolation, u is a vector of 1s (default value) but
@@ -48,7 +48,6 @@
     TODO: 
         - properly check anyvc (Done but not tested)
         - wrap gs operations in a function (like apply_Q and apply_Qt) ? (Maybe)
-        - write free function for csr matrices
         - write sym_sparsify
         - rewrite sparsify so that the matrix at output is the sparsified matrix
 */
@@ -465,13 +464,21 @@ void solve_weights(struct csr_mat *W, struct csr_mat *W0, double *lam,
     memcpy(au, alpha, rnc*sizeof(double));
     vv_op(au, u, rnc, ewmult);
 
+    // W0 is initialised by W_skel
     copy_csr(W0, W_skel);
 
+    // We need -Ar interp: Arminus = -Ar
+    struct csr_mat *Arminus = tmalloc(struct csr_mat, 1);
+    copy_csr(Arminus, Ar);
+    ar_scal_op(Arminus->a,-1,Ar->row_off[rnr],mult_op);
+
 /*    
-    // Matrices W0, Af and Ar should be transpose to get correct result !
+    // Matrices W0, Af and Ar should be transposed to get the correct result !
     //interp(W0, Af, Ar, au, lam);
     
 */
+
+    csr_free(&Arminus);
 
 }
 
