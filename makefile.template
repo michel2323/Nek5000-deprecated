@@ -92,6 +92,7 @@ endif
 
 ifeq ($(IFLZ4),true)
   LZ4_COMP := lz4.o
+  lFLAGS := ${lFLAGS} $S/lz4/lib/liblz4.a
 endif
 
 # IFCMT append *.o files to CORE
