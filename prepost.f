@@ -2177,6 +2177,12 @@ c-----------------------------------------------------------------------
       real*4         u4
       real*8         u8(1+lxo*lxo*lxo*1*lelt)
       equivalence    (u4,u8)
+#ifdef COMP_DCT
+      real*4         u4comp
+      real*8         u8comp(1+lxo*lxo*lxo*3*lelt)
+      equivalence    (u4comp,u8comp)
+      integer ncomp
+#endif
 
       integer e
 
@@ -2202,12 +2208,19 @@ c-----------------------------------------------------------------------
              call copy   (u8,u,ntot)
          endif
          nout = wdsizo/4 * ntot
-         if(ierr.eq.0) 
+         if(ierr.eq.0) then 
 #ifdef MPIIO
-     &     call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
+           call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
 #else
-     &     call byte_write(u4,nout,ierr)          ! u4 :=: u8
+#ifdef COMP_DCT
+           call zero_compress(u4,nout/2,u4comp,ncomp,ierr)
+           call byte_write(u4comp,(ncomp+4)/4,ierr)          ! u4comp :=: u8comp
+           call byte_write(ncomp,1,ierr)          
+#else
+           call byte_write(u4,nout,ierr)          ! u4 :=: u8
 #endif
+#endif
+         endif
 
          ! write out the data of my childs
          idum  = 1
@@ -2220,13 +2233,22 @@ c-----------------------------------------------------------------------
 #ifdef MPIIO
                call byte_write_mpi(u4(3),nout,-1,ifh_mbyte,ierr)
 #else
+#ifdef COMP_DCT
+#else
                call byte_write(u4(3),nout,ierr)
+#endif
 #endif
             elseif(ierr.eq.0) then
 #ifdef MPIIO
                call byte_write_mpi(u8(2),nout,-1,ifh_mbyte,ierr)
 #else
+#ifdef COMP_DCT
+               call zero_compress(u8(2),nout/2,u8comp,ncomp,ierr)
+               call byte_write(u8comp,(ncomp+4)/4,ierr)          
+               call byte_write(ncomp,1,ierr)          
+#else
                call byte_write(u8(2),nout,ierr)
+#endif
 #endif
             endif
          enddo
@@ -2265,6 +2287,12 @@ c-----------------------------------------------------------------------
       real*4         u4
       real*8         u8(1+lxo*lxo*lxo*3*lelt)
       equivalence    (u4,u8)
+#ifdef COMP_DCT
+      real*4         u4comp
+      real*8         u8comp(1+lxo*lxo*lxo*3*lelt)
+      equivalence    (u4comp,u8comp)
+      integer ncomp
+#endif
 
       integer e
 
@@ -2306,12 +2334,19 @@ c-----------------------------------------------------------------------
              enddo
          endif
          nout = wdsizo/4 * ndim*nel * nxyz
-         if(ierr.eq.0) 
+         if(ierr.eq.0) then 
 #ifdef MPIIO
-     &     call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
+           call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
 #else
-     &     call byte_write(u4,nout,ierr)          ! u4 :=: u8
+#ifdef COMP_DCT
+           call zero_compress(u4,nout/2,u4comp,ncomp,ierr)
+           call byte_write(u4comp,(ncomp+4)/4,ierr)          ! u4comp :=: u8comp
+           call byte_write(ncomp,1,ierr)          
+#else
+           call byte_write(u4,nout,ierr)          ! u4 :=: u8
 #endif
+#endif
+         endif
          ! write out the data of my childs
          do k=pid0+1,pid1
             mtype = k
@@ -2329,7 +2364,13 @@ c-----------------------------------------------------------------------
 #ifdef MPIIO
                call byte_write_mpi(u8(2),nout,-1,ifh_mbyte,ierr)
 #else
+#ifdef COMP_DCT
+               call zero_compress(u8(2),nout/2,u8comp,ncomp,ierr)
+               call byte_write(u8comp,(ncomp+4)/4,ierr)          
+               call byte_write(ncomp,1,ierr)          
+#else
                call byte_write(u8(2),nout,ierr)
+#endif
 #endif
             endif
          enddo

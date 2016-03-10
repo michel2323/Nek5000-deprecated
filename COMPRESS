@@ -1,0 +1,49 @@
+C
+C     Geometry arrays
+C
+      parameter (lx4=lx1, ly4=ly1,lz4=lz1)
+      real thres
+      parameter (thres = 1e-6)
+      real compratio(lelv)
+      COMMON /sizesg4/ nx4, ny4, nz4
+      COMMON /GXYZ4/
+     $              XM4   (LX4,LY4,LZ4,LELT)
+     $             ,YM4   (LX4,LY4,LZ4,LELT)
+     $             ,ZM4   (LX4,LY4,LZ4,LELT)
+     $             ,BM4   (LX4,LY4,LZ4,LELV)
+     $             ,BM4INV(LX4,LY4,LZ4,LELT)  
+
+      COMMON /GISO4/
+     $              RXM4  (LX4,LY4,LZ4,LELV)
+     $             ,SXM4  (LX4,LY4,LZ4,LELV)
+     $             ,TXM4  (LX4,LY4,LZ4,LELV)
+     $             ,RYM4  (LX4,LY4,LZ4,LELV)
+     $             ,SYM4  (LX4,LY4,LZ4,LELV)
+     $             ,TYM4  (LX4,LY4,LZ4,LELV)
+     $             ,RZM4  (LX4,LY4,LZ4,LELV)
+     $             ,SZM4  (LX4,LY4,LZ4,LELV)
+     $             ,TZM4  (LX4,LY4,LZ4,LELV)
+     $             ,JACM4 (LX4,LY4,LZ4,LELV)
+      REAL          JACM4
+
+C
+C     Interpolation operators
+C
+      COMMON /interpcheb/ IXM14 (LX4,LX1),  IXM41 (LX1,LX4)
+     $             ,IYM14 (LY4,LY1),  IYM41 (LY1,LY4)
+     $             ,IZM14 (LZ4,LZ1),  IZM41 (LZ1,LZ4)
+     $             ,IXTM14(LX1,LX4),  IXTM41(LX4,LX1)
+     $             ,IYTM14(LY1,LY4),  IYTM41(LY4,LY1)
+     $             ,IZTM14(LZ1,LZ4),  IZTM41(LZ4,LZ1)
+     $             ,DCT1d(LX1,LX4),   DCT1dT(LX4,LX1) 
+
+      REAL   IXM14,IYM14,IZM14,IXM41,IYM41,IZM41
+      REAL   IXTM14,IYTM14,IZTM14,IXTM41,IYTM41,IZTM41
+      REAL   DCT1d, DCT1dT
+
+      COMMON /grid/  ZGM4(lx4,ldim)
+     $               ,WXM4(lx4), WYM4(ly4), WZM4(lz4)
+     $               ,W3M4(lx4,ly4,lz4)
+      real   ZGM4,WXM4, WYM4, WZM4,W3M2 
+     
+

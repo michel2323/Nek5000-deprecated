@@ -18,6 +18,7 @@ if [ "$PPLIST" == "?" ]; then
   echo "  NO_LAPACK disable nek-supplied LAPACK routines"
   echo "  BLAS_MXM  disable nek-supplied BLAS routines"
   echo "  EXTBAR    adds underscore to exit call(for BGQ)"
+  echo "  COMP_DCT  lossy dct compression"
   exit 1
 fi
 
@@ -61,6 +62,7 @@ echo "CMT root" $SOURCE_ROOT_CMT
 
 IFMOAB=false
 IFNEKNEK=false
+IFDCT=false
 
 # do some basic checks
 if [ "$CASEDIR" == "$SOURCE_ROOT" ]; then
@@ -292,6 +294,10 @@ if [ "$i" == "NEKNEK" ]; then
      IFNEKNEK=true
 fi
 
+if [ "$i" == "COMP_DCT" ]; then
+     IFDCT=true
+fi
+
    if [ "$i" == "CVODE" ]; then
     if [ "$CVODE_DIR" == "" ]; then
        echo "ABORT: Please specify path to CVODE in CVODE_DIR!" 
@@ -416,6 +422,7 @@ sed -e "s:^F77[ ]*=.*:F77\:=$F77:" \
 -e "s/^IFMOAB[ ]*=.*/IFMOAB:=$IFMOAB/" \
 -e "s:^MOAB_DIR[ ]*=.*:MOAB_DIR\:=${MOAB_DIR}:" \
 -e "s/^IFNEKNEK[ ]*=.*/IFNEKNEK:=$IFNEKNEK/" \
+-e "s/^IFDCT[ ]*=.*/IFDCT:=$IFDCT/" \
 -e "s:^USR[ ]*=.*:USR\:=$USR:" \
 -e "s:^USR_LFLAGS[ ]*=.*:USR_LFLAGS\:=$USR_LFLAGS:" \
 -e "s:^S[ ]*=.*:S\:=${SOURCE_ROOT}:" \
