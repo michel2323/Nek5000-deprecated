@@ -167,7 +167,7 @@ C----------------------------------------------------------------------
       error=abs(fin(indd(1),1,1))
       i=0.0
       temp1=0.0
-      do while (error.le.thres)
+      do while ((error.le.thres) .and. (i+1.le. lx4*ly4*lz4))
          i=i+1
          ordind=indd(i) 
          temp1=temp1+fin(ordind,1,1)**2

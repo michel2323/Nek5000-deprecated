@@ -2215,7 +2215,7 @@ c-----------------------------------------------------------------------
 #ifdef COMP_DCT
            call zero_compress(u4,nout/2,u4comp,ncomp,ierr)
            call byte_write(u4comp,(ncomp+4)/4,ierr)          ! u4comp :=: u8comp
-           call byte_write(ncomp,1,ierr)          
+C           call byte_write(ncomp,1,ierr)          
 #else
            call byte_write(u4,nout,ierr)          ! u4 :=: u8
 #endif
@@ -2245,7 +2245,7 @@ c-----------------------------------------------------------------------
 #ifdef COMP_DCT
                call zero_compress(u8(2),nout/2,u8comp,ncomp,ierr)
                call byte_write(u8comp,(ncomp+4)/4,ierr)          
-               call byte_write(ncomp,1,ierr)          
+C               call byte_write(ncomp,1,ierr)          
 #else
                call byte_write(u8(2),nout,ierr)
 #endif
@@ -2341,7 +2341,7 @@ c-----------------------------------------------------------------------
 #ifdef COMP_DCT
            call zero_compress(u4,nout/2,u4comp,ncomp,ierr)
            call byte_write(u4comp,(ncomp+4)/4,ierr)          ! u4comp :=: u8comp
-           call byte_write(ncomp,1,ierr)          
+C           call byte_write(ncomp,1,ierr)          
 #else
            call byte_write(u4,nout,ierr)          ! u4 :=: u8
 #endif
@@ -2367,7 +2367,7 @@ c-----------------------------------------------------------------------
 #ifdef COMP_DCT
                call zero_compress(u8(2),nout/2,u8comp,ncomp,ierr)
                call byte_write(u8comp,(ncomp+4)/4,ierr)          
-               call byte_write(ncomp,1,ierr)          
+C               call byte_write(ncomp,1,ierr)          
 #else
                call byte_write(u8(2),nout,ierr)
 #endif

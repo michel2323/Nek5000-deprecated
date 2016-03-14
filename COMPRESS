@@ -3,7 +3,7 @@ C     Geometry arrays
 C
       parameter (lx4=lx1, ly4=ly1,lz4=lz1)
       real thres
-      parameter (thres = 1e-6)
+      parameter (thres = 1e-7)
       real compratio(lelv)
       COMMON /sizesg4/ nx4, ny4, nz4
       COMMON /GXYZ4/
