@@ -2177,7 +2177,7 @@ c-----------------------------------------------------------------------
       real*4         u4
       real*8         u8(1+lxo*lxo*lxo*1*lelt)
       equivalence    (u4,u8)
-#ifdef COMP_DCT
+#ifndef COMP_DCT
       real*4         u4comp
       real*8         u8comp(1+lxo*lxo*lxo*3*lelt)
       equivalence    (u4comp,u8comp)
@@ -2212,7 +2212,7 @@ c-----------------------------------------------------------------------
 #ifdef MPIIO
            call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
 #else
-#ifdef COMP_DCT
+#ifndef COMP_DCT
            call zero_compress(u4,nout/2,u4comp,ncomp,ierr)
            call byte_write(u4comp,(ncomp+4)/4,ierr)          ! u4comp :=: u8comp
 C           call byte_write(ncomp,1,ierr)          
@@ -2233,7 +2233,7 @@ C           call byte_write(ncomp,1,ierr)
 #ifdef MPIIO
                call byte_write_mpi(u4(3),nout,-1,ifh_mbyte,ierr)
 #else
-#ifdef COMP_DCT
+#ifndef COMP_DCT
 #else
                call byte_write(u4(3),nout,ierr)
 #endif
@@ -2242,7 +2242,7 @@ C           call byte_write(ncomp,1,ierr)
 #ifdef MPIIO
                call byte_write_mpi(u8(2),nout,-1,ifh_mbyte,ierr)
 #else
-#ifdef COMP_DCT
+#ifndef COMP_DCT
                call zero_compress(u8(2),nout/2,u8comp,ncomp,ierr)
                call byte_write(u8comp,(ncomp+4)/4,ierr)          
 C               call byte_write(ncomp,1,ierr)          
@@ -2287,7 +2287,7 @@ c-----------------------------------------------------------------------
       real*4         u4
       real*8         u8(1+lxo*lxo*lxo*3*lelt)
       equivalence    (u4,u8)
-#ifdef COMP_DCT
+#ifndef COMP_DCT
       real*4         u4comp
       real*8         u8comp(1+lxo*lxo*lxo*3*lelt)
       equivalence    (u4comp,u8comp)
@@ -2338,7 +2338,7 @@ c-----------------------------------------------------------------------
 #ifdef MPIIO
            call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
 #else
-#ifdef COMP_DCT
+#ifndef COMP_DCT
            call zero_compress(u4,nout/2,u4comp,ncomp,ierr)
            call byte_write(u4comp,(ncomp+4)/4,ierr)          ! u4comp :=: u8comp
 C           call byte_write(ncomp,1,ierr)          
@@ -2364,7 +2364,7 @@ C           call byte_write(ncomp,1,ierr)
 #ifdef MPIIO
                call byte_write_mpi(u8(2),nout,-1,ifh_mbyte,ierr)
 #else
-#ifdef COMP_DCT
+#ifndef COMP_DCT
                call zero_compress(u8(2),nout/2,u8comp,ncomp,ierr)
                call byte_write(u8comp,(ncomp+4)/4,ierr)          
 C               call byte_write(ncomp,1,ierr)          
