@@ -141,7 +141,7 @@ C
        END
 
 c----------------------------------------------------------------------
-      subroutine truncate(ftrunc,fin,comp)
+      subroutine truncate(ftrunc,fin,comp,iel)
 C----------------------------------------------------------------------
 c     truncate in spectral space 
 C----------------------------------------------------------------------
@@ -151,29 +151,43 @@ C----------------------------------------------------------------------
      
       integer indd(lx4*ly4*lz4)
       real fin(lx4,ly4,lz4) 
-      real f(lx4*ly4*lz4) 
+      real f(lx4,ly4,lz4), BMlocal(lx4,ly4,lz4) 
       real ftrunc(lx4,ly4,lz4) 
-      real error, temp1, temp2
-      integer i,nxyz4,ordind
+      real error, temp1, temp2,vol_el
+      integer i,nxyz4,ordind,iel
       real comp
- 
+      logical tt
+
       nxyz4=nx4*ny4*nz4;
       call copy(f,fin,nxyz4) 
       call copy(ftrunc,fin,nxyz4)   
-  
-      call absolute(f,nxyz4)
+      call copy(Bmlocal,BM4(:,:,:,iel),nxyz4)
+
+      call col2(f,f,nxyz4)
+      call col2(f,BMlocal,nxyz4)
+      !!call absolute(f,nxyz4)
+      !! this for l2 norm only, but works for all others simlarly
+      ! return f ordered ascending, and array indd of indeces
       call sort(f,indd,nxyz4)   
-            
-      error=abs(fin(indd(1),1,1))
+      vol_el=glsum(BMlocal,nxyz4)
+
+      error=0.0
       i=0.0
       temp1=0.0
-      do while ((error.le.thres) .and. (i+1.le. lx4*ly4*lz4))
-         i=i+1
-         ordind=indd(i) 
-         temp1=temp1+fin(ordind,1,1)**2
-         error=sqrt(1.0/real(i)*temp1);
-         ftrunc(ordind,1,1)=0.0
-      end do      
+      tt=.true.
+      do while (tt)
+         temp1=temp1+f(i+1,1,1)
+         error=sqrt(temp1/vol_el);
+         if  ((error.lt.thres) .and. (i+1.le.lx4*ly4*lz4)) then
+             i=i+1
+             ordind=indd(i) 
+             ftrunc(ordind,1,1)=0.0 
+         else 
+             tt=.false.
+         endif
+              
+      end do   
+      write(*,*), 'thres', thres, error   
       comp=real(i)/real(nxyz4)
       
       RETURN
@@ -227,8 +241,8 @@ c     computes l2 norm error and maxnorm on grid M4
       call sub3(error,f1,f2,n)
       call vsq(error,n)
       vol_t=glsum(bm4,n)
-      l2norm= glsc2(bm4,error,n)
-      maxerr= glmax(error,n)
+      l2norm= sqrt(glsc2(bm4,error,n)/vol_t)
+      maxerr= sqrt(glmax(error/vol_t,n))
       
       end subroutine
 
@@ -254,7 +268,7 @@ c     computes l2 norm error and maxnorm on grid M1
       maxerr= glmax(error,n)     
       call vsq(error,n)
       vol_t=glsum(bm1,n)
-      l2norm= glsc2(bm1,error,n)
+      l2norm= sqrt(glsc2(bm1,error,n)/vol_t)
          
       end subroutine
 
