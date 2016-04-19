@@ -271,7 +271,7 @@ $(OBJDIR)/bg_mxm44.o	  :$S/bg_mxm44.s;		$(CC) -c $< -o $@
 $(OBJDIR)/bg_mxm44_uneven.o :$S/bg_mxm44_uneven.s;	$(CC) -c $< -o $@
 # DCT      #################################################################################
 $(OBJDIR)/zero_compression.o     :$S/zero_compression.c;  $(CC) -c $(cFL2) $(JL) $< -o $@
-$(OBJDIR)/dct.o	 		 :$S/dct.f;		  $(F77) -c $(FL2) $< -o $@
+$(OBJDIR)/dct.o	 		 :$S/dct.f $S/COMPRESS;		  $(F77) -c $(FL2) $< -o $@
 
 # C Files ##################################################################################
 $(OBJDIR)/nek_comm.o             :$S/nek_comm.c;          $(CC) -c $(cFL2) $(JL) $< -o $@
