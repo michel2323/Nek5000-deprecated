@@ -2080,8 +2080,9 @@ c-----------------------------------------------------------------------
 
       ! setup read buffer
       if (nid.eq.pid0r) then
-         nread = nxyzr*nelr/lrbs
-         if(mod(nxyzr*nelr,lrbs).ne.0) nread = nread + 1
+         nread = int(  int(nxyzr,8)*int(nelr,8)/int(lrbs,8)  ,4) 
+         if(mod(int(nxyzr,8)*int(nelr,8),int(lrbs,8)).ne.0) 
+     $    nread = nread + 1
 #ifdef MPIIO 
          nread = iglmax(nread,1) ! needed because of collective read
 #endif
@@ -2220,8 +2221,9 @@ c-----------------------------------------------------------------------
 
       ! setup read buffer
       if(nid.eq.pid0r) then
-         nread = nxyzr*nelr/lrbs
-         if(mod(nxyzr*nelr,lrbs).ne.0) nread = nread + 1
+         nread = int(  int(nxyzr,8)*int(nelr,8)/int(lrbs,8)  ,4) 
+         if(mod(int(nxyzr,8)*int(nelr,8),int(lrbs,8)).ne.0) 
+     $      nread = nread + 1
 #ifdef MPIIO 
          nread = iglmax(nread,1) ! needed because of collective read
 #endif
@@ -2595,7 +2597,8 @@ c               if(nid.eq.0) write(6,'(A,I2,A)') ' Reading ps',k,' field'
          endif
       enddo
       nbyte = 0
-      if(nid.eq.pid0r) nbyte = iofldsr*nelr*wdsizr*nxr*nyr*nzr
+      if(nid.eq.pid0r) nbyte = int(iofldsr,8)*int(nelr,8)*int(wdsizr,8)
+     &                       * int(nxr,8)*int(nyr,8)*int(nzr,8)
 
       if (ifgtim) time = timer
 
