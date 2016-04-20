@@ -178,7 +178,7 @@ C----------------------------------------------------------------------
       do while (tt)
          temp1=temp1+f(i+1,1,1)
          error=sqrt(temp1/vol_el);
-         if  ((error.lt.thres) .and. (i+1.le.lx4*ly4*lz4)) then
+         if  ((error.lt.compthres) .and. (i+1.le.lx4*ly4*lz4)) then
              i=i+1
              ordind=indd(i) 
              ftrunc(ordind,1,1)=0.0 
@@ -187,7 +187,7 @@ C----------------------------------------------------------------------
          endif
               
       end do   
-      write(*,*), 'thres', thres, error   
+      write(*,*) 'compthres', compthres, error   
       comp=real(i)/real(nxyz4)
       
       RETURN
