@@ -177,7 +177,7 @@ C----------------------------------------------------------------------
       tt=.true.
       do while (tt)
          temp1=temp1+f(i+1,1,1)
-         error=sqrt(temp1/vol_el);
+         error=sqrt(temp1)/vol_el;
          if  ((error.lt.thres) .and. (i+1.le.lx4*ly4*lz4)) then
              i=i+1
              ordind=indd(i) 
@@ -260,16 +260,16 @@ c     computes l2 norm error and maxnorm on grid M1
       real f1(lx1,ly1,lz1,nelv)
       real f2(lx1,ly1,lz1,nelv)
       real error(lx1,ly1,lz1,nelv)
-      
+      real volume
       
       n=nx1*ny1*nz1*nelv 
+      volume=glsum(bm1,n)
+
       call sub3(error,f1,f2,n)
       call absolute(error,n)
-      maxerr= glmax(error,n)     
+      maxerr= glmax(error,n)/volume    
       call vsq(error,n)
-      vol_t=glsum(bm1,n)
-      l2norm= sqrt(glsc2(bm1,error,n)/vol_t)
-         
+      l2norm= sqrt(glsc2(bm1,error,n))/volume
       end subroutine
 
       subroutine genmeshM4
