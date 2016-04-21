@@ -2176,8 +2176,8 @@ c-----------------------------------------------------------------------
       common /SCRNS/ u4(2+lxo*lxo*lxo*2*lelt)
       real*4         u4
 #ifdef LZ4_COMM_COMPRESSION
-      common /SCRNS/ u4_comp(2+lxo*lxo*lxo*2*lelt)
-      real*4         u4_comp
+      common /SCRNS/ u4comp(2+lxo*lxo*lxo*2*lelt)
+      real*4         u4comp
 #endif
       real*8         u8(1+lxo*lxo*lxo*1*lelt)
       equivalence    (u4,u8)
@@ -2212,11 +2212,11 @@ c-----------------------------------------------------------------------
            sizein=nout*4
            sizeout=0
            leo_comp=0
-           call lz4_pack(u4, sizein, u4_comp, sizeout, ierr)
-           print *, 'Compressed output s field from ', sizein, ' to ',
-     $               (sizeout+4)/4, '.'
-           call byte_write(u4_comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
+           call lz4_pack(u4, sizein, u4comp, sizeout, ierr)
+C           print *, 'Compressed output s field from ', sizein, ' to ',
+C     $               (sizeout+4)/4, '.'
            call byte_write(sizeout,1,ierr)          ! u4 :=: u8
+           call byte_write(u4comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
 #else
 #ifdef MPIIO
      &     call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
@@ -2279,12 +2279,12 @@ c-----------------------------------------------------------------------
 #ifdef LZ4_COMM_COMPRESSION
 C         leo_comp=leo
 C         No need for nel in u4(1)
-         call lz4_pack(u4(3), leo-1, u4_comp, leo_comp, ierr)
+         call lz4_pack(u4(3), leo-1, u4comp, leo_comp, ierr)
          call crecv(mtype,idum,4)            ! hand-shake
          print *, 'leo: ', leo
          print *, 'leo_comp: ', leo_comp
          call csend(mtype,leo_comp,4,pid0,0)     ! u4 :=: u8
-         call csend(mtype,u4_comp,leo_comp,pid0,0)     ! u4 :=: u8
+         call csend(mtype,u4comp,leo_comp,pid0,0)     ! u4 :=: u8
 #else
          call crecv(mtype,idum,4)            ! hand-shake
          call csend(mtype,u4,leo,pid0,0)     ! u4 :=: u8
@@ -2310,8 +2310,8 @@ c-----------------------------------------------------------------------
       common /SCRNS/ u4(2+lxo*lxo*lxo*6*lelt)
       real*4         u4
 #ifdef LZ4_COMM_COMPRESSION
-      common /SCRNS/ u4_comp(2+lxo*lxo*lxo*2*lelt)
-      real*4         u4_comp
+      common /SCRNS/ u4comp(2+lxo*lxo*lxo*2*lelt)
+      real*4         u4comp
 #endif
       real*8         u8(1+lxo*lxo*lxo*3*lelt)
       equivalence    (u4,u8)
@@ -2362,11 +2362,11 @@ c-----------------------------------------------------------------------
            sizein=nout*4
            sizeout=0
            leo_comp=0
-           call lz4_pack(u4, sizein, u4_comp, sizeout, ierr)
+           call lz4_pack(u4, sizein, u4comp, sizeout, ierr)
            print *, 'Compressed output v field from ', sizein, ' to ',
      $               (sizeout+4)/4, '.'
-           call byte_write(u4_comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
            call byte_write(sizeout,1,ierr)          ! u4 :=: u8
+           call byte_write(u4comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
 #else
 #ifdef MPIIO
            call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
@@ -2447,12 +2447,12 @@ c-----------------------------------------------------------------------
 #ifdef LZ4_COMM_COMPRESSION
 C         leo_comp=leo
 C         No need for nel in u4(1)
-         call lz4_pack(u4(3), leo-1, u4_comp, leo_comp, ierr)
+         call lz4_pack(u4(3), leo-1, u4comp, leo_comp, ierr)
          call crecv(mtype,idum,4)            ! hand-shake
          print *, 'leo: ', leo
          print *, 'leo_comp: ', leo_comp
          call csend(mtype,leo_comp,4,pid0,0)     ! u4 :=: u8
-         call csend(mtype,u4_comp,leo_comp,pid0,0)     ! u4 :=: u8
+         call csend(mtype,u4comp,leo_comp,pid0,0)     ! u4 :=: u8
 #else
          call crecv(mtype,idum,4)            ! hand-shake
          call csend(mtype,u4,leo,pid0,0)     ! u4 :=: u8
