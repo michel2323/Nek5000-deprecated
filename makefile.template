@@ -12,7 +12,7 @@ IFCMT=
 IFAMG= 
 IFAMG_DUMP=
 IFNEKNEK=
-IFLZ4=
+IFLZ4COMPUTENODE=
 IFMOAB=
 MOAB_DIR=
 F77=
@@ -91,7 +91,7 @@ ifeq ($(IFMPI),false)
   COMM_MPI := ${COMM_MPI} mpi_dummy.o
 endif
 
-ifeq ($(IFLZ4),true)
+ifeq ($(IFLZ4COMPUTENODE),true)
   LZ4_COMP := lz4.o
   lFLAGS := ${lFLAGS} $S/lz4/lib/liblz4.a
 endif

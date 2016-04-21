@@ -18,7 +18,7 @@ if [ "$PPLIST" == "?" ]; then
   echo "  NO_LAPACK     disable nek-supplied LAPACK routines"
   echo "  BLAS_MXM      disable nek-supplied BLAS routines"
   echo "  EXTBAR        adds underscore to exit call(for BGQ)"
-  echo "  LZ4_COMM_COMP lossless compression of output using lz4"
+  echo "  LZ4COMPUTENODE lossless compression of output using lz4"
   exit 1
 fi
 
@@ -62,7 +62,7 @@ echo "CMT root" $SOURCE_ROOT_CMT
 
 IFMOAB=false
 IFNEKNEK=false
-IFLZ4=false
+IFLZ4COMPUTENODE=false
 
 # do some basic checks
 if [ "$CASEDIR" == "$SOURCE_ROOT" ]; then
@@ -294,8 +294,8 @@ if [ "$i" == "NEKNEK" ]; then
      IFNEKNEK=true
 fi
 
-if [ "$i" == "LZ4_COMM_COMPRESSION" ]; then
-     IFLZ4=true
+if [ "$i" == "LZ4COMPUTENODE" ]; then
+     IFLZ4COMPUTENODE=true
 fi
 
    if [ "$i" == "CVODE" ]; then
@@ -422,7 +422,7 @@ sed -e "s:^F77[ ]*=.*:F77\:=$F77:" \
 -e "s/^IFMOAB[ ]*=.*/IFMOAB:=$IFMOAB/" \
 -e "s:^MOAB_DIR[ ]*=.*:MOAB_DIR\:=${MOAB_DIR}:" \
 -e "s/^IFNEKNEK[ ]*=.*/IFNEKNEK:=$IFNEKNEK/" \
--e "s/^IFLZ4[ ]*=.*/IFLZ4:=$IFLZ4/" \
+-e "s/^IFLZ4COMPUTENODE[ ]*=.*/IFLZ4COMPUTENODE:=$IFLZ4COMPUTENODE/" \
 -e "s:^USR[ ]*=.*:USR\:=$USR:" \
 -e "s:^USR_LFLAGS[ ]*=.*:USR_LFLAGS\:=$USR_LFLAGS:" \
 -e "s:^S[ ]*=.*:S\:=${SOURCE_ROOT}:" \

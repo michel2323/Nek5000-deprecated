@@ -2175,9 +2175,9 @@ c-----------------------------------------------------------------------
 
       common /SCRNS/ u4(2+lxo*lxo*lxo*2*lelt)
       real*4         u4
-#ifdef LZ4_COMM_COMPRESSION
-      common /SCRNS/ u4_comp(2+lxo*lxo*lxo*2*lelt)
-      real*4         u4_comp
+#ifdef LZ4COMPUTENODE
+      common /SCRNS/ u4comp(2+lxo*lxo*lxo*2*lelt)
+      real*4         u4comp
 #endif
       real*8         u8(1+lxo*lxo*lxo*1*lelt)
       equivalence    (u4,u8)
@@ -2208,14 +2208,14 @@ c-----------------------------------------------------------------------
          endif
          nout = wdsizo/4 * ntot
          if(ierr.eq.0) then 
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
            sizein=nout*4
            sizeout=0
            leo_comp=0
-           call lz4_pack(u4, sizein, u4_comp, sizeout, ierr)
+           call lz4_pack(u4, sizein, u4comp, sizeout, ierr)
            print *, 'Compressed output s field from ', sizein, ' to ',
      $               (sizeout+4)/4, '.'
-           call byte_write(u4_comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
+           call byte_write(u4comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
            call byte_write(sizeout,1,ierr)          ! u4 :=: u8
 #else
 #ifdef MPIIO
@@ -2230,7 +2230,7 @@ c-----------------------------------------------------------------------
          idum  = 1
          do k=pid0+1,pid1
             mtype = k
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
             call csend(mtype,idum,4,k,0)       ! handshake
             call crecv(mtype,leo_comp,4)
             call crecv(mtype,u4,len)
@@ -2242,7 +2242,7 @@ c-----------------------------------------------------------------------
 #endif
             nout  = wdsizo/4 * nxyz * u8(1)
             if (wdsizo.eq.4.and.ierr.eq.0) then
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
                call byte_write(u4(1),nout,ierr)
                call byte_write(leo_comp,1,ierr)
 #else
@@ -2253,7 +2253,7 @@ c-----------------------------------------------------------------------
 #endif
 #endif
             elseif(ierr.eq.0) then
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
                call byte_write(u8(1),nout,ierr)
                call byte_write(leo_comp,1,ierr)
 #else
@@ -2276,15 +2276,15 @@ c-----------------------------------------------------------------------
          endif
 
          mtype = nid
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
 C         leo_comp=leo
 C         No need for nel in u4(1)
-         call lz4_pack(u4(3), leo-1, u4_comp, leo_comp, ierr)
+         call lz4_pack(u4(3), leo-1, u4comp, leo_comp, ierr)
          call crecv(mtype,idum,4)            ! hand-shake
          print *, 'leo: ', leo
          print *, 'leo_comp: ', leo_comp
          call csend(mtype,leo_comp,4,pid0,0)     ! u4 :=: u8
-         call csend(mtype,u4_comp,leo_comp,pid0,0)     ! u4 :=: u8
+         call csend(mtype,u4comp,leo_comp,pid0,0)     ! u4 :=: u8
 #else
          call crecv(mtype,idum,4)            ! hand-shake
          call csend(mtype,u4,leo,pid0,0)     ! u4 :=: u8
@@ -2309,9 +2309,9 @@ c-----------------------------------------------------------------------
 
       common /SCRNS/ u4(2+lxo*lxo*lxo*6*lelt)
       real*4         u4
-#ifdef LZ4_COMM_COMPRESSION
-      common /SCRNS/ u4_comp(2+lxo*lxo*lxo*2*lelt)
-      real*4         u4_comp
+#ifdef LZ4COMPUTENODE
+      common /SCRNS/ u4comp(2+lxo*lxo*lxo*2*lelt)
+      real*4         u4comp
 #endif
       real*8         u8(1+lxo*lxo*lxo*3*lelt)
       equivalence    (u4,u8)
@@ -2358,14 +2358,14 @@ c-----------------------------------------------------------------------
          endif
          nout = wdsizo/4 * ndim*nel * nxyz
          if(ierr.eq.0) then
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
            sizein=nout*4
            sizeout=0
            leo_comp=0
-           call lz4_pack(u4, sizein, u4_comp, sizeout, ierr)
+           call lz4_pack(u4, sizein, u4comp, sizeout, ierr)
            print *, 'Compressed output v field from ', sizein, ' to ',
      $               (sizeout+4)/4, '.'
-           call byte_write(u4_comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
+           call byte_write(u4comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
            call byte_write(sizeout,1,ierr)          ! u4 :=: u8
 #else
 #ifdef MPIIO
@@ -2378,7 +2378,7 @@ c-----------------------------------------------------------------------
          ! write out the data of my childs
          do k=pid0+1,pid1
             mtype = k
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
             call csend(mtype,idum,4,k,0)       ! handshake
             call crecv(mtype,leo_comp,4)
             call crecv(mtype,u4,len)
@@ -2391,7 +2391,7 @@ c-----------------------------------------------------------------------
 #endif
 
             if (wdsizo.eq.4.and.ierr.eq.0) then
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
                call byte_write(u4(1),nout,ierr)
                call byte_write(leo_comp,1,ierr)
 #else
@@ -2402,7 +2402,7 @@ c-----------------------------------------------------------------------
 #endif
 #endif
             elseif(ierr.eq.0) then
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
                call byte_write(u8(1),nout,ierr)
                call byte_write(leo_comp,1,ierr)
 #else
@@ -2444,15 +2444,15 @@ c-----------------------------------------------------------------------
          endif
 
          mtype = nid
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
 C         leo_comp=leo
 C         No need for nel in u4(1)
-         call lz4_pack(u4(3), leo-1, u4_comp, leo_comp, ierr)
+         call lz4_pack(u4(3), leo-1, u4comp, leo_comp, ierr)
          call crecv(mtype,idum,4)            ! hand-shake
          print *, 'leo: ', leo
          print *, 'leo_comp: ', leo_comp
          call csend(mtype,leo_comp,4,pid0,0)     ! u4 :=: u8
-         call csend(mtype,u4_comp,leo_comp,pid0,0)     ! u4 :=: u8
+         call csend(mtype,u4comp,leo_comp,pid0,0)     ! u4 :=: u8
 #else
          call crecv(mtype,idum,4)            ! hand-shake
          call csend(mtype,u4,leo,pid0,0)     ! u4 :=: u8
