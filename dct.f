@@ -187,7 +187,7 @@ C----------------------------------------------------------------------
          endif
               
       end do   
-      write(*,*) 'compthres', compthres, error   
+C      write(*,*) 'compthres', compthres, error   
       comp=real(i)/real(nxyz4)
       
       RETURN
