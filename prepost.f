@@ -2175,7 +2175,11 @@ c-----------------------------------------------------------------------
 
       common /SCRNS/ u4(2+lxo*lxo*lxo*2*lelt)
       real*4         u4
+<<<<<<< HEAD
 #ifdef LZ4_COMM_COMPRESSION
+=======
+#ifdef LZ4COMPUTENODE
+>>>>>>> 12018bd84ae236749885c46036b3799372265ccc
       common /SCRNS/ u4comp(2+lxo*lxo*lxo*2*lelt)
       real*4         u4comp
 #endif
@@ -2208,13 +2212,19 @@ c-----------------------------------------------------------------------
          endif
          nout = wdsizo/4 * ntot
          if(ierr.eq.0) then 
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
            sizein=nout*4
            sizeout=0
            leo_comp=0
            call lz4_pack(u4, sizein, u4comp, sizeout, ierr)
+<<<<<<< HEAD
 C           print *, 'Compressed output s field from ', sizein, ' to ',
 C     $               (sizeout+4)/4, '.'
+=======
+           print *, 'Compressed output s field from ', sizein, ' to ',
+     $               (sizeout+4)/4, '.'
+           call byte_write(u4comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
+>>>>>>> 12018bd84ae236749885c46036b3799372265ccc
            call byte_write(sizeout,1,ierr)          ! u4 :=: u8
            call byte_write(u4comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
 #else
@@ -2230,7 +2240,7 @@ C     $               (sizeout+4)/4, '.'
          idum  = 1
          do k=pid0+1,pid1
             mtype = k
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
             call csend(mtype,idum,4,k,0)       ! handshake
             call crecv(mtype,leo_comp,4)
             call crecv(mtype,u4,len)
@@ -2242,7 +2252,7 @@ C     $               (sizeout+4)/4, '.'
 #endif
             nout  = wdsizo/4 * nxyz * u8(1)
             if (wdsizo.eq.4.and.ierr.eq.0) then
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
                call byte_write(u4(1),nout,ierr)
                call byte_write(leo_comp,1,ierr)
 #else
@@ -2253,7 +2263,7 @@ C     $               (sizeout+4)/4, '.'
 #endif
 #endif
             elseif(ierr.eq.0) then
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
                call byte_write(u8(1),nout,ierr)
                call byte_write(leo_comp,1,ierr)
 #else
@@ -2276,7 +2286,7 @@ C     $               (sizeout+4)/4, '.'
          endif
 
          mtype = nid
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
 C         leo_comp=leo
 C         No need for nel in u4(1)
          call lz4_pack(u4(3), leo-1, u4comp, leo_comp, ierr)
@@ -2309,7 +2319,11 @@ c-----------------------------------------------------------------------
 
       common /SCRNS/ u4(2+lxo*lxo*lxo*6*lelt)
       real*4         u4
+<<<<<<< HEAD
 #ifdef LZ4_COMM_COMPRESSION
+=======
+#ifdef LZ4COMPUTENODE
+>>>>>>> 12018bd84ae236749885c46036b3799372265ccc
       common /SCRNS/ u4comp(2+lxo*lxo*lxo*2*lelt)
       real*4         u4comp
 #endif
@@ -2358,15 +2372,15 @@ c-----------------------------------------------------------------------
          endif
          nout = wdsizo/4 * ndim*nel * nxyz
          if(ierr.eq.0) then
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
            sizein=nout*4
            sizeout=0
            leo_comp=0
            call lz4_pack(u4, sizein, u4comp, sizeout, ierr)
            print *, 'Compressed output v field from ', sizein, ' to ',
      $               (sizeout+4)/4, '.'
-           call byte_write(sizeout,1,ierr)          ! u4 :=: u8
            call byte_write(u4comp,(sizeout+4)/4,ierr)          ! u4 :=: u8
+           call byte_write(sizeout,1,ierr)          ! u4 :=: u8
 #else
 #ifdef MPIIO
            call byte_write_mpi(u4,nout,-1,ifh_mbyte,ierr)
@@ -2378,7 +2392,7 @@ c-----------------------------------------------------------------------
          ! write out the data of my childs
          do k=pid0+1,pid1
             mtype = k
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
             call csend(mtype,idum,4,k,0)       ! handshake
             call crecv(mtype,leo_comp,4)
             call crecv(mtype,u4,len)
@@ -2391,7 +2405,7 @@ c-----------------------------------------------------------------------
 #endif
 
             if (wdsizo.eq.4.and.ierr.eq.0) then
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
                call byte_write(u4(1),nout,ierr)
                call byte_write(leo_comp,1,ierr)
 #else
@@ -2402,7 +2416,7 @@ c-----------------------------------------------------------------------
 #endif
 #endif
             elseif(ierr.eq.0) then
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
                call byte_write(u8(1),nout,ierr)
                call byte_write(leo_comp,1,ierr)
 #else
@@ -2444,7 +2458,7 @@ c-----------------------------------------------------------------------
          endif
 
          mtype = nid
-#ifdef LZ4_COMM_COMPRESSION
+#ifdef LZ4COMPUTENODE
 C         leo_comp=leo
 C         No need for nel in u4(1)
          call lz4_pack(u4(3), leo-1, u4comp, leo_comp, ierr)
