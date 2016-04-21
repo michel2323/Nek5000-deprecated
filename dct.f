@@ -241,8 +241,8 @@ c     computes l2 norm error and maxnorm on grid M4
       call sub3(error,f1,f2,n)
       call vsq(error,n)
       vol_t=glsum(bm4,n)
-      l2norm= sqrt(glsc2(bm4,error,n)/vol_t)
-      maxerr= sqrt(glmax(error/vol_t,n))
+      l2norm= sqrt(glsc2(bm4,error,n))/vol_t
+      maxerr= sqrt(glmax(error,n))_vol_t
       
       end subroutine
 
@@ -260,16 +260,16 @@ c     computes l2 norm error and maxnorm on grid M1
       real f1(lx1,ly1,lz1,nelv)
       real f2(lx1,ly1,lz1,nelv)
       real error(lx1,ly1,lz1,nelv)
-      real volume
+      real volm
       
       n=nx1*ny1*nz1*nelv 
-      volume=glsum(bm1,n)
+      volm=glsum(bm1,n)
 
       call sub3(error,f1,f2,n)
       call absolute(error,n)
-      maxerr= glmax(error,n)/volume    
+      maxerr= glmax(error,n)/volm    
       call vsq(error,n)
-      l2norm= sqrt(glsc2(bm1,error,n))/volume
+      l2norm= sqrt(glsc2(bm1,error,n))/volm
       end subroutine
 
       subroutine genmeshM4
