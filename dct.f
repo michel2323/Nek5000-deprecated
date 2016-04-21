@@ -242,7 +242,7 @@ c     computes l2 norm error and maxnorm on grid M4
       call vsq(error,n)
       vol_t=glsum(bm4,n)
       l2norm= sqrt(glsc2(bm4,error,n))/vol_t
-      maxerr= sqrt(glmax(error,n))_vol_t
+      maxerr= sqrt(glmax(error,n))/vol_t
       
       end subroutine
 
