@@ -173,7 +173,7 @@ C----------------------------------------------------------------------
 
       !vlsum(BMlocal,nxyz4)
 
-      locthres=compthres/sqrt(real(lelv))
+      locthres=compthres/sqrt(real(nelgv))
       error=0.0
       i=0.0
       temp1=0.0
