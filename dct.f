@@ -169,7 +169,7 @@ C----------------------------------------------------------------------
       !! this for l2 norm only, but works for all others simlarly
       ! return f ordered ascending, and array indd of indeces
       call sort(f,indd,nxyz4)   
-      vol_el=glsum(BMlocal,nxyz4)
+      vol_el=vlsum(BMlocal,nxyz4)
 
       error=0.0
       i=0.0
