@@ -3,8 +3,9 @@ C     Geometry arrays
 C
       parameter (lx4=lx1, ly4=ly1,lz4=lz1)
       real compthres
-      parameter (compthres = 1e-5)
+      parameter (compthres = 1e-7)
       real compratio(3,lelv)
+      real elvol, volm
       COMMON /sizesg4/ nx4, ny4, nz4
       COMMON /GXYZ4/
      $              XM4   (LX4,LY4,LZ4,LELT)
@@ -36,6 +37,7 @@ C
      $             ,IYTM14(LY1,LY4),  IYTM41(LY4,LY1)
      $             ,IZTM14(LZ1,LZ4),  IZTM41(LZ4,LZ1)
      $             ,DCT1d(LX1,LX4),   DCT1dT(LX4,LX1) 
+     $             ,elvol(lelv), volm
 
       REAL   IXM14,IYM14,IZM14,IXM41,IYM41,IZM41
       REAL   IXTM14,IYTM14,IZTM14,IXTM41,IYTM41,IZTM41

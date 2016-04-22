@@ -153,7 +153,7 @@ C----------------------------------------------------------------------
       real fin(lx4,ly4,lz4) 
       real f(lx4,ly4,lz4), BMlocal(lx4,ly4,lz4) 
       real ftrunc(lx4,ly4,lz4) 
-      real error, temp1, temp2,vol_el
+      real error, temp1, temp2,vol_el, locthres
       integer i,nxyz4,ordind,iel
       real comp
       logical tt
@@ -169,16 +169,19 @@ C----------------------------------------------------------------------
       !! this for l2 norm only, but works for all others simlarly
       ! return f ordered ascending, and array indd of indeces
       call sort(f,indd,nxyz4)   
-      vol_el=vlsum(BMlocal,nxyz4)
+      vol_el=elvol(iel)
 
+      !vlsum(BMlocal,nxyz4)
+
+      locthres=compthres/sqrt(real(lelv))
       error=0.0
       i=0.0
       temp1=0.0
       tt=.true.
       do while (tt)
          temp1=temp1+f(i+1,1,1)
-         error=sqrt(temp1/vol_el)
-         if  ((error.lt.compthres) .and. (i+2.le.lx4*ly4*lz4)) then
+         error=sqrt(temp1)!/vol_el
+         if  ((error.lt.locthres) .and. (i+2.le.lx4*ly4*lz4)) then
              i=i+1
              ordind=indd(i) 
              ftrunc(ordind,1,1)=0.0 
@@ -187,7 +190,7 @@ C----------------------------------------------------------------------
          endif
               
       end do   
-C      write(*,*) 'compthres', compthres, error   
+      !write(*,*) 'compthres', locthres, vol_el   
       comp=real(i)/real(nxyz4)
       
       RETURN
@@ -240,9 +243,9 @@ c     computes l2 norm error and maxnorm on grid M4
       n=nx4*ny4*nz4*nelv 
       call sub3(error,f1,f2,n)
       call vsq(error,n)
-      vol_t=glsum(bm4,n)
-      l2norm= sqrt(glsc2(bm4,error,n))/vol_t
-      maxerr= sqrt(glmax(error,n))/vol_t
+
+      l2norm= sqrt(glsc2(bm4,error,n))/volm
+      maxerr= sqrt(glmax(error,n))/volm
       
       end subroutine
 
@@ -260,16 +263,17 @@ c     computes l2 norm error and maxnorm on grid M1
       real f1(lx1,ly1,lz1,nelv)
       real f2(lx1,ly1,lz1,nelv)
       real error(lx1,ly1,lz1,nelv)
-      real volm
-      
+           
       n=nx1*ny1*nz1*nelv 
-      volm=glsum(bm1,n)
-
+      
       call sub3(error,f1,f2,n)
       call absolute(error,n)
-      maxerr= glmax(error,n)/volm    
+      maxerr= glmax(error,n)!/volm   
       call vsq(error,n)
-      l2norm= sqrt(glsc2(bm1,error,n))/volm
+      l2norm= sqrt(glsc2(bm1,error,n))!/volm
+
+      !write(*,*) 'volume', volm
+
       end subroutine
 
       subroutine genmeshM4
@@ -335,6 +339,8 @@ C             CALL MAP14 (TXM4(1,1,1,IEL),TXM1(1,1,1,IEL),IEL)
 C             CALL MAP14 (TYM4(1,1,1,IEL),TYM1(1,1,1,IEL),IEL)
 C             CALL MAP14 (TZM4(1,1,1,IEL),TZM1(1,1,1,IEL),IEL)
 C          ENDIF
+          elvol(iel)=vlsum(BM1(1,1,1,iel),nxyz4)
+
           CALL MAP14 (JACM4(1,1,1,IEL),JACM1(1,1,1,IEL),IEL)
 C
           CALL MAP14 (XM4(1,1,1,IEL),XM1(1,1,1,IEL),IEL)
@@ -344,6 +350,8 @@ C
 C        Compute the mass matrix on mesh M4
           CALL COL3 (BM4(1,1,1,IEL),W3M4,JACM4(1,1,1,IEL),NXYZ4)
        end do
+      volm=glsum(bm1,n)
+
 
       CALL INVERS2(BM4INV,BM4,n4)
 
