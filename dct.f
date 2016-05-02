@@ -151,7 +151,7 @@ C----------------------------------------------------------------------
      
       integer indd(lx4*ly4*lz4)
       real fin(lx4,ly4,lz4) 
-      real f(lx4,ly4,lz4), BMlocal(lx4,ly4,lz4) 
+      real f(lx4,ly4,lz4) 
       real ftrunc(lx4,ly4,lz4) 
       real error, temp1, temp2,vol_el, locthres
       integer i,nxyz4,ordind,iel
@@ -161,10 +161,11 @@ C----------------------------------------------------------------------
       nxyz4=nx4*ny4*nz4;
       call copy(f,fin,nxyz4) 
       call copy(ftrunc,fin,nxyz4)   
-      call copy(Bmlocal,BM4(:,:,:,iel),nxyz4)
+      !call copy(Bmlocal,BM4(:,:,:,iel),nxyz4)
 
       call col2(f,f,nxyz4)
-      call col2(f,BMlocal,nxyz4)
+      !call dssum(f,lx1,ly1,lz1)
+      call col2(f,BM1local(:,:,:,iel),nxyz4)
       !!call absolute(f,nxyz4)
       !! this for l2 norm only, but works for all others simlarly
       ! return f ordered ascending, and array indd of indeces
@@ -173,14 +174,14 @@ C----------------------------------------------------------------------
 
       !vlsum(BMlocal,nxyz4)
 
-      locthres=compthres/sqrt(real(nelgv))
+      locthres=compthres*vol_el!/volm!*sqrt(real(nelgv))
       error=0.0
       i=0.0
       temp1=0.0
       tt=.true.
       do while (tt)
          temp1=temp1+f(i+1,1,1)
-         error=sqrt(temp1)!/vol_el
+         error=sqrt(temp1)!*vol_el!/volm
          if  ((error.lt.locthres) .and. (i+2.le.lx4*ly4*lz4)) then
              i=i+1
              ordind=indd(i) 
@@ -268,9 +269,9 @@ c     computes l2 norm error and maxnorm on grid M1
       
       call sub3(error,f1,f2,n)
       call absolute(error,n)
-      maxerr= glmax(error,n)!/volm   
+      maxerr= glmax(error,n)/volm   
       call vsq(error,n)
-      l2norm= sqrt(glsc2(bm1,error,n))!/volm
+      l2norm= sqrt(glsc2(bm1,error,n))/volm
 
       !write(*,*) 'volume', volm
 
@@ -339,8 +340,6 @@ C             CALL MAP14 (TXM4(1,1,1,IEL),TXM1(1,1,1,IEL),IEL)
 C             CALL MAP14 (TYM4(1,1,1,IEL),TYM1(1,1,1,IEL),IEL)
 C             CALL MAP14 (TZM4(1,1,1,IEL),TZM1(1,1,1,IEL),IEL)
 C          ENDIF
-          elvol(iel)=vlsum(BM1(1,1,1,iel),nxyz4)
-
           CALL MAP14 (JACM4(1,1,1,IEL),JACM1(1,1,1,IEL),IEL)
 C
           CALL MAP14 (XM4(1,1,1,IEL),XM1(1,1,1,IEL),IEL)
@@ -349,6 +348,9 @@ C
 C
 C        Compute the mass matrix on mesh M4
           CALL COL3 (BM4(1,1,1,IEL),W3M4,JACM4(1,1,1,IEL),NXYZ4)
+          call copy (BM1local(1,1,1,iel),bm1(1,1,1,iel),nxyz4)
+          !call invcol2 (BM1local(1,1,1,iel),vmult(1,1,1,iel),nxyz4)
+          elvol(iel)=vlsum(BM1local(1,1,1,iel),nxyz4)
        end do
       volm=glsum(bm1,n)
 

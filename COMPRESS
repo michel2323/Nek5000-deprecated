@@ -2,18 +2,19 @@ C
 C     Geometry arrays
 C
       parameter (lx4=lx1, ly4=ly1,lz4=lz1)
-      real compthres
-C      parameter (compthres = 1e-7)
+C      real compthres
+      parameter (compthres = 1e-7)
       real compratio(3,lelv)
       real elvol, volm
-      COMMON /compress/ compthres
+c      COMMON /compress/ compthres
       COMMON /sizesg4/ nx4, ny4, nz4
       COMMON /GXYZ4/
      $              XM4   (LX4,LY4,LZ4,LELT)
      $             ,YM4   (LX4,LY4,LZ4,LELT)
      $             ,ZM4   (LX4,LY4,LZ4,LELT)
      $             ,BM4   (LX4,LY4,LZ4,LELV)
-     $             ,BM4INV(LX4,LY4,LZ4,LELT)  
+     $             ,BM4INV(LX4,LY4,LZ4,LELT) 
+     $             ,BM1local(lx4,ly4,lz4,lelt) 
 
       COMMON /GISO4/
      $              RXM4  (LX4,LY4,LZ4,LELV)
