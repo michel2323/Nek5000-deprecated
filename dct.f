@@ -174,7 +174,7 @@ C----------------------------------------------------------------------
 
       !vlsum(BMlocal,nxyz4)
 
-      locthres=compthres*vol_el!/volm!*sqrt(real(nelgv))
+      locthres=compthres*sqrt(vol_el)!/volm!*sqrt(real(nelgv))
       error=0.0
       i=0.0
       temp1=0.0
@@ -271,7 +271,7 @@ c     computes l2 norm error and maxnorm on grid M1
       call absolute(error,n)
       maxerr= glmax(error,n)/volm   
       call vsq(error,n)
-      l2norm= sqrt(glsc2(bm1,error,n))/volm
+      l2norm= sqrt(glsc2(bm1,error,n))/sqrt(volm)
 
       !write(*,*) 'volume', volm
 
