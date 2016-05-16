@@ -4,7 +4,7 @@ C
       parameter (lx4=lx1, ly4=ly1,lz4=lz1)
       real compthres
 C     parameter (compthres = 1e-7)
-      real compratio(3,lelv)
+      real compratio(4,lelv)
       real elvol, volm
       COMMON /cratios/ compthres
       COMMON /sizesg4/ nx4, ny4, nz4
