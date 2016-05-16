@@ -2061,7 +2061,7 @@ c-----------------------------------------------------------------------
       real u(lx1*ly1*lz1,1)
 
       real*4 wk(lwk) ! message buffer
-      parameter(lrbs=20*lx1*ly1*lz1*lelt)
+      parameter(lrbs=200*lx1*ly1*lz1*lelt)
       common /vrthov/ w2(lrbs) ! read buffer
       real*4 w2
 
@@ -2203,7 +2203,7 @@ c-----------------------------------------------------------------------
       logical iskip
 
       real*4 wk(lwk) ! message buffer
-      parameter(lrbs=20*lx1*ly1*lz1*lelt)
+      parameter(lrbs=200*lx1*ly1*lz1*lelt)
       common /vrthov/ w2(lrbs) ! read buffer
       real*4 w2
 
