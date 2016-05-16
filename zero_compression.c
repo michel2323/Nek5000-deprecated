@@ -39,7 +39,7 @@ void zero_compress_(double *in, int *n_, char *out, int *m_, int *ierr) {
     }
   }
   *m_=(int) (c+1);
-  printf("Compressed to %ld of %ld.\n",c+1,n*8);
+  /*printf("Compressed to %ld of %ld.\n",c+1,n*8);*/
 }
 
 void zero_decompress_(char *in, double *out, long int *n_, int *ierr) {
@@ -80,5 +80,10 @@ void zero_decompress_(char *in, double *out, long int *n_, int *ierr) {
   }
 }
 
-
+void zero_compress(double *in, int *n_, char *out, int *m_, int *ierr) {
+zero_compress_(in, n_, out, m_, ierr);
+}
+void zero_decompress(char *in, double *out, long int *n_, int *ierr) {
+zero_decompress_(in, out, n_, ierr);
+}
 
