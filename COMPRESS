@@ -14,7 +14,8 @@ C     parameter (compthres = 1e-7)
      $             ,ZM4   (LX4,LY4,LZ4,LELT)
      $             ,BM4   (LX4,LY4,LZ4,LELV)
      $             ,BM4INV(LX4,LY4,LZ4,LELT) 
-     $             ,BM1local(lx4,ly4,lz4,lelt) 
+     $             ,BM1local(lx1,ly1,lz1,lelt) 
+     $             ,BM4local(lx4,ly4,lz4,lelt) 
 
       COMMON /GISO4/
      $              RXM4  (LX4,LY4,LZ4,LELV)
@@ -39,7 +40,7 @@ C
      $             ,IYTM14(LY1,LY4),  IYTM41(LY4,LY1)
      $             ,IZTM14(LZ1,LZ4),  IZTM41(LZ4,LZ1)
      $             ,DCT1d(LX1,LX4),   DCT1dT(LX4,LX1) 
-     $             ,elvol(lelv), volm
+     $             ,elvolm1(lelv), elvolm4(lelv), volm
 
       REAL   IXM14,IYM14,IZM14,IXM41,IYM41,IZM41
       REAL   IXTM14,IYTM14,IZTM14,IXTM41,IYTM41,IZTM41
