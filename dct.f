@@ -155,17 +155,17 @@ C----------------------------------------------------------------------
       real ftrunc(lx4,ly4,lz4) 
       real error, temp1, temp2,vol_el, locthres
       integer i,nxyz4,ordind,iel
-      real comp
+      real comp,bmlocal(lx1,ly1,lz1)
       logical tt
 
       nxyz4=nx4*ny4*nz4;
       call copy(f,fin,nxyz4) 
       call copy(ftrunc,fin,nxyz4)   
-      !call copy(Bmlocal,BM4(:,:,:,iel),nxyz4)
+      call copy(Bmlocal,BM1(:,:,:,iel),nxyz4)
 
       call col2(f,f,nxyz4)
       !call dssum(f,lx1,ly1,lz1)
-      call col2(f,BM1local(:,:,:,iel),nxyz4)
+      call col2(f,bmlocal,nxyz4)
       !!call absolute(f,nxyz4)
       !! this for l2 norm only, but works for all others simlarly
       ! return f ordered ascending, and array indd of indeces
@@ -175,7 +175,7 @@ C----------------------------------------------------------------------
       !vlsum(BMlocal,nxyz4)
 
 C      locthres=compthres*sqrt(vol_el)!/sqrt(volm)!*sqrt(real(nelgv))
-      locthres=compthres*vol_el!/sqrt(volm)!*sqrt(real(nelgv))
+      locthres=compthres*sqrt(vol_el)!/sqrt(volm)!*sqrt(real(nelgv))
       error=0.0
       i=0.0
       temp1=0.0
@@ -212,17 +212,17 @@ C----------------------------------------------------------------------
       real ftrunc(lx4,ly4,lz4) 
       real error, temp1, temp2,vol_el, locthres
       integer i,nxyz4,ordind,iel
-      real comp
+      real comp, bmlocal(lx4,ly4,lz4)
       logical tt
 
       nxyz4=nx4*ny4*nz4;
       call copy(f,fin,nxyz4) 
       call copy(ftrunc,fin,nxyz4)   
-      !call copy(Bmlocal,BM4(:,:,:,iel),nxyz4)
+      call copy(Bmlocal,BM4(:,:,:,iel),nxyz4)
 
       call col2(f,f,nxyz4)
       !call dssum(f,lx1,ly1,lz1)
-      call col2(f,BM4local(:,:,:,iel),nxyz4)
+      call col2(f,bmlocal,nxyz4)
       !!call absolute(f,nxyz4)
       !! this for l2 norm only, but works for all others simlarly
       ! return f ordered ascending, and array indd of indeces
@@ -232,7 +232,7 @@ C----------------------------------------------------------------------
       !vlsum(BMlocal,nxyz4)
 
 C      locthres=compthres*sqrt(vol_el)!/sqrt(volm)!*sqrt(real(nelgv))
-      locthres=compthres*vol_el!/sqrt(volm)!*sqrt(real(nelgv))
+      locthres=compthres*sqrt(vol_el)!/sqrt(volm)!*sqrt(real(nelgv))
       error=0.0
       i=0.0
       temp1=0.0
@@ -330,7 +330,7 @@ c     computes l2 norm error and maxnorm on grid M1
       maxerr= glmax(error,n)/volm   
       call vsq(error,n)
 C      l2norm= sqrt(glsc2(bm1,error,n))/sqrt(volm)
-      l2norm= sqrt(glsc2(bm1,error,n))/volm
+      l2norm= sqrt(glsc2(bm1,error,n))/sqrt(volm)
 
       !write(*,*) 'volume', volm
 
@@ -361,10 +361,12 @@ c     generate chebyshev grid
       call ZWGLJD (ZGM4(1,3),WZM4,lz4,-0.5,-0.5)  
       endif
 
+      do iz=1,nz4
       DO IY=1,NY4
        DO IX=1,NX4
-         W3M4(IX,IY,1)=WXM4(IX)*WYM4(IY)
+         W3M4(IX,IY,IZ)=WXM4(IX)*WYM4(IY)*WZM4(IZ)
        enddo
+      enddo
       enddo
 
 c     build interpolants, not for 3d yet
@@ -407,12 +409,9 @@ C
 C
 C        Compute the mass matrix on mesh M4
           CALL COL3 (BM4(1,1,1,IEL),W3M4,JACM4(1,1,1,IEL),NXYZ4)
-          call copy (BM1local(1,1,1,iel),bm1(1,1,1,iel),nxyz4)
+          elvolm1(iel)=vlsum(BM1(1,1,1,iel),nxyz4)
           !call invcol2 (BM1local(1,1,1,iel),vmult(1,1,1,iel),nxyz4)
-          elvolm1(iel)=vlsum(BM1local(1,1,1,iel),nxyz4)
-          call copy (BM4local(1,1,1,iel),bm4(1,1,1,iel),nxyz4)
-          !call invcol2 (BM1local(1,1,1,iel),vmult(1,1,1,iel),nxyz4)
-          elvolm4(iel)=vlsum(BM4local(1,1,1,iel),nxyz4)
+          elvolm4(iel)=vlsum(BM4(1,1,1,iel),nxyz4)
        end do
       volm=glsum(bm1,n)
 

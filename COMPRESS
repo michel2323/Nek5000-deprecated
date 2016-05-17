@@ -5,7 +5,7 @@ C
       real compthres
 C     parameter (compthres = 1e-7)
       real compratio(3,lelv)
-      real elvol, volm
+      real elvolm1, elvolm4, volm
       COMMON /cratios/ compthres
       COMMON /sizesg4/ nx4, ny4, nz4
       COMMON /GXYZ4/
@@ -14,8 +14,6 @@ C     parameter (compthres = 1e-7)
      $             ,ZM4   (LX4,LY4,LZ4,LELT)
      $             ,BM4   (LX4,LY4,LZ4,LELV)
      $             ,BM4INV(LX4,LY4,LZ4,LELT) 
-     $             ,BM1local(lx1,ly1,lz1,lelt) 
-     $             ,BM4local(lx4,ly4,lz4,lelt) 
 
       COMMON /GISO4/
      $              RXM4  (LX4,LY4,LZ4,LELV)
@@ -28,7 +26,7 @@ C     parameter (compthres = 1e-7)
      $             ,SZM4  (LX4,LY4,LZ4,LELV)
      $             ,TZM4  (LX4,LY4,LZ4,LELV)
      $             ,JACM4 (LX4,LY4,LZ4,LELV)
-      REAL          JACM4
+      REAL          JACM4, BM4
 
 C
 C     Interpolation operators
