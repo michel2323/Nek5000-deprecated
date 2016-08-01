@@ -8,21 +8,18 @@ void amg_setup(uint n, const ulong *id, uint nz_unassembled, const uint *Ai,
 /*******************************************************************************
 * AMG functions
 *******************************************************************************/
-void coarsen(double *vc, struct csr_mat *A, double ctol, slong *gs_id,
-    struct gs_data *gsh, struct gs_data *gsh_single);
+void coarsen(double *vc, struct csr_mat *A, double ctol);
 
 void interpolation(struct csr_mat *W, struct csr_mat *Af, struct csr_mat *Ac, 
-    struct csr_mat *Ar, double gamma2, double tol, struct gs_data *gsh_f, 
-    struct gs_data *gsh_c, struct gs_data *gsh_single);
+    struct csr_mat *Ar, double gamma2, double tol);
 
 /*******************************************************************************
 * Algebraic functions
 *******************************************************************************/
 static void mat_max(double *y, struct csr_mat *A, double *f, double *x, 
-    double tol, struct gs_data *gsh);
+    double tol);
 
-uint lanczos(double **lambda, struct csr_mat *A, slong *gs_id,
-             struct gs_data *gsh, struct gs_data *gsh_single);
+uint lanczos(double **lambda, struct csr_mat *A);
 
 static void tdeig(double *lambda, double *y, double *d, const double *v,
                   const int n);
@@ -36,8 +33,7 @@ void chebsim(double *m, double *c, double rho, double tol);
 
 void sparsify(double *S, struct csr_mat *A, double tol);
 
-uint pcg(double *v, struct csr_mat *A, double *r, double *M, double tol,
-    struct gs_data *gsh, struct gs_data *gsh_single);
+uint pcg(double *v, struct csr_mat *A, double *r, double *M, double tol);
 
 void min_skel(struct csr_mat *W_skel, struct csr_mat *R);
 
@@ -161,11 +157,11 @@ void csr_free(struct csr_mat **A);
 * Functions used to build sparse matrix and id array for gs
 *******************************************************************************/
 // Matrix under coordinate list format (used as intermediate step to build csr)
-struct coo_mat{uint i, j; double v;}; 
+typedef struct {uint i, j; double v;} coo_mat; 
+typedef struct {coo_mat coo_A; uint dest;} coo_mat_dest; 
 
 /* Build matrix using csr format */
-void build_csr(struct csr_mat *csr_A, struct coo_mat *coo_A, uint nnz,
-    slong *gs_id);
+void build_csr(struct csr_mat *A, coo_mat *coo_A, uint nnz);
 
 /* Sorting functions */
 int comp_coo_v (const void * a, const void * b);
@@ -182,8 +178,8 @@ int comp_coo_j (const void * a, const void * b);
 static uint remdup(uint *array, uint size);
 
 /* Function to build sparse matrix and gs_id */
-void build_setup_data(struct csr_mat *csr_A, slong **gs_id, uint n, const ulong
-    *id, uint nz_unassembled, const uint *Ai, const uint* Aj, const double *A,   
+void build_setup_data(struct csr_mat *A, uint n, const ulong *id,  
+    uint nz_unassembled, const uint *Ai, const uint* Aj, const double *Av,   
     struct crs_data *data);
 
 #endif

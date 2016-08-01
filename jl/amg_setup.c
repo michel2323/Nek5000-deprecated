@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <math.h>
 #include <float.h>
@@ -19,13 +20,13 @@
 #include "amg_setup.h"
 
 /* 
-    Parallel version of the AMG setup for Nek5000 based on the Matlab version. 
+    Serial version of the AMG setup for Nek5000 based on the Matlab version. 
 
     Algorithm is based on the the Ph.D. thesis of J. Lottes:
     "Towards Robust Algebraic Multigrid Methods for Nonsymmetric Problems"
 
     - Author of the original version (Matlab): James Lottes
-    - Author of the parallel version: Nicolas Offermans
+    - Author of the serial version in C: Nicolas Offermans
 
     - Last update: 16 December, 2015
 
@@ -47,7 +48,6 @@
 /*
     TODO: 
         - properly check anyvc (Done but not tested)
-        - wrap gs operations in a function (like apply_Q and apply_Qt) ? (Maybe)
         - write sym_sparsify
         - rewrite sparsify so that the matrix at output is the sparsified matrix
 */
@@ -59,37 +59,31 @@ void amg_setup(uint n, const ulong *id, uint nz_unassembled, const uint *Ai,
       Matrices are partitioned by rows. */
 {   
 
-/* Declare csr matrix A (assembled matrix Av under csr format) and array gs_id, 
-   an array of ids to setup gather-scatter */  
+/* Declare csr matrix A (assembled matrix Av under csr format) */  
     struct csr_mat *A = tmalloc(struct csr_mat, 1);
-    slong *gs_id;
 
-/* Build A and gs_id, the required data for the setup */
-    build_setup_data(A, &gs_id, n, id, nz_unassembled, Ai, Aj, Av, data);
-    uint rn = A->rn;
-    uint cn = A->cn;
+/* Build A the required data for the setup */
+    build_setup_data(A, n, id, nz_unassembled, Ai, Aj, Av, data);
 
-/* Create handles for gather-scatter */
-    // General gather-scatter handle for global vectors (asymmetric behavior)
-    struct gs_data *gsh = gs_setup(gs_id, cn, &(data->comm), 1, gs_auto, 0);
-    // Gather-scatter handle for single data
-    slong foo = 1;
-    struct gs_data *gsh_single = gs_setup(&foo, 1, &(data->comm), 0, gs_auto,0);
-
-/* At this point:
-    - A is stored using csr format
-    - each row is located entirely on one process only
-    - gather-scatter has been setup for the main level
+/* At this point, A is stored on proc 0 using csr format
 */
+
+// DUMMY
+
+slong *gs_id, *gs_id_f;
+struct gs_data *gsh, *gsh_f;
+struct gs_data *gsh_single;
 
 /**************************************/
 /* Memory allocation for data struct. */
 /**************************************/
 
-    uint rnglob = rn;
-    gs(&rnglob, gs_int, gs_add, 0, gsh_single, 0);
+    if ((data->comm).id == 0){
 
-    data->tni = 1./rnglob;
+    uint rn = A->rn;
+    uint cn = A->cn;
+
+    data->tni = 1./rn;
 
     // Initial size for number of sublevels
     // If more levels than this, realloction is required!
@@ -131,25 +125,24 @@ void amg_setup(uint n, const ulong *id, uint nz_unassembled, const uint *Ai,
 /* Make sure that enough memory is allocated */
     if (slevel > 0 && slevel % initsize == 0)
     {
-        data->cheb_m = trealloc(uint, data->cheb_m, initsize);
-        data->cheb_rho = trealloc(double, data->cheb_rho, initsize); 
-        data->lvl_offset = trealloc(uint, data->lvl_offset, initsize);
+        int memsize = (slevel/initsize+1)*initsize;
+        data->cheb_m = trealloc(uint, data->cheb_m, memsize);
+        data->cheb_rho = trealloc(double, data->cheb_rho, memsize); 
+        data->lvl_offset = trealloc(uint, data->lvl_offset, memsize);
 
-        data->Q_W = trealloc(struct Q, data->Q_W, initsize);
-        data->Q_AfP = trealloc(struct Q, data->Q_AfP, initsize);
-        data->Q_Aff = trealloc(struct Q, data->Q_Aff, initsize);
+        data->Q_W = trealloc(struct Q, data->Q_W, memsize);
+        data->Q_AfP = trealloc(struct Q, data->Q_AfP, memsize);
+        data->Q_Aff = trealloc(struct Q, data->Q_Aff, memsize);
 
-        data->W = trealloc(struct csr_mat, data->W, initsize);
-        data->AfP = trealloc(struct csr_mat, data->AfP, initsize);
-        data->Aff = trealloc(struct csr_mat, data->Aff, initsize);
+        data->W = trealloc(struct csr_mat, data->W, memsize);
+        data->AfP = trealloc(struct csr_mat, data->AfP, memsize);
+        data->Aff = trealloc(struct csr_mat, data->Aff, memsize);
     }
 
 /* Coarsen */ 
     double *vc = tmalloc(double, cn);
     // compute vc for i = 1,...,rn
-    coarsen(vc, A, ctol, gs_id, gsh, gsh_single); 
-    // update vc for i = rn+1,...,cn
-    gs(vc, gs_double, gs_add, 0, gsh, 0); 
+    coarsen(vc, A, ctol); 
 
     double *vf = tmalloc(double, cn);
     bin_op(vf, vc, cn, not_op); // vf  = ~vc for i = 1,...,cn
@@ -163,12 +156,6 @@ void amg_setup(uint n, const ulong *id, uint nz_unassembled, const uint *Ai,
     uint rnf = Af->rn;
     uint cnf = Af->cn;
     uint ncolf = Af->row_off[rnf];
-
-    // Build new gs handle (Fine mesh)
-    slong *gs_id_f = tmalloc(slong, cnf);
-    sub_slong(gs_id_f, gs_id, vf, cn);
-    struct gs_data *gsh_f = gs_setup(gs_id_f, cnf, &(data->comm), 1, 
-                                         gs_auto, 0);
 
     // af2 = Af.*Af ( Af.*conj(Af) in Matlab --> make sure Af is never complex)  
     double *af = tmalloc(double, ncolf); 
@@ -193,25 +180,18 @@ void amg_setup(uint n, const ulong *id, uint nz_unassembled, const uint *Ai,
 
     // D = diag(Af)' .* s
     double *D = tmalloc(double, rnf);
-    init_array(D, rnf, -1);
     diag(D, Af);
 
     vv_op(D, s, rnf, ewmult);
 
-    // nf = nnz(vf) (globally)
-    uint nf = rnf;
-    gs(&nf, gs_int, gs_add, 0, gsh_single, 0);
-
     double gap;
 
-    if (nf >= 2)
+    if (rnf >= 2)
     {
         // Dh = sqrt(D)
         double *Dh = tmalloc(double, cnf);
         memcpy(Dh, D, rnf*sizeof(double));
         array_op(Dh, rnf, sqrt_op);
-
-        gs(Dh, gs_double, gs_add, 0, gsh_f, 0);
 
         struct csr_mat *DhAfDh = tmalloc(struct csr_mat, 1);
         copy_csr(DhAfDh, Af); // DhAfDh = Af
@@ -221,7 +201,7 @@ void amg_setup(uint n, const ulong *id, uint nz_unassembled, const uint *Ai,
         // Vector of eigenvalues
         double *lambda;
         // Number of eigenvalues
-        uint k = lanczos(&lambda, DhAfDh, gs_id_f, gsh_f, gsh_single);
+        uint k = lanczos(&lambda, DhAfDh);  
 
         // First and last eigenvalues
         double a = lambda[0];
@@ -275,16 +255,10 @@ void amg_setup(uint n, const ulong *id, uint nz_unassembled, const uint *Ai,
     uint cnc = Ac->cn;
     uint ncolc = Ac->row_off[rnc];
 
-    // New gs handle (Coarse mesh)
-    slong *gs_id_c = tmalloc(slong, cnc);
-    sub_slong(gs_id_c, gs_id, vc, cn);
-    struct gs_data *gsh_c = gs_setup(gs_id_c, cnc, &(data->comm), 1, 
-                                         gs_auto, 0);
-
     // W
     struct csr_mat *W = tmalloc(struct csr_mat, 1);
 
-    interpolation(W, Af, Ac, Afc, gamma2, itol, gsh_f, gsh_c, gsh_single);
+    interpolation(W, Af, Ac, Afc, gamma2, itol);
     
 /* Update data structure */
     offset += rnf;
@@ -336,31 +310,25 @@ void amg_setup(uint n, const ulong *id, uint nz_unassembled, const uint *Ai,
 /* Free */
     // Free arrays
     free(vc);
-    free(gs_id);
-    free(gs_id_f);
-    free(gs_id_c);
     free(af);
     free(s);
     free(D);
 
     // Free csr matrices
-    csr_free(&A);
     csr_free(&Af);
     csr_free(&Afc);
     csr_free(&Ac);
     //csr_free(&W);
 
-    // Free gs
-    gs_free(gsh);
-    gs_free(gsh_f);
-    gs_free(gsh_c);
-    gs_free(gsh_single);
+// End of "if ((data->comm).id)"    
+    }
+
+    csr_free(&A);
 }
 
 /* Interpolation */
 void interpolation(struct csr_mat *W, struct csr_mat *Af, struct csr_mat *Ac, 
-    struct csr_mat *Ar, double gamma2, double tol, struct gs_data *gsh_f, 
-    struct gs_data *gsh_c, struct gs_data *gsh_single)
+    struct csr_mat *Ar, double gamma2, double tol)
 {
 
     // Dimensions of the matrices
@@ -395,7 +363,7 @@ void interpolation(struct csr_mat *W, struct csr_mat *Af, struct csr_mat *Ac,
 
     double *v = tmalloc(double, rnf); 
 
-    pcg(v, Af, r, Df, 1e-16, gsh_f, gsh_single);   
+    pcg(v, Af, r, Df, 1e-16);   
     
     // dc = diag(Ac)
     double *Dc = tmalloc(double, cnc);
@@ -404,7 +372,6 @@ void interpolation(struct csr_mat *W, struct csr_mat *Af, struct csr_mat *Ac,
     double *Dcinv = tmalloc(double, cnc);
     diag(Dcinv, Ac);
     array_op(Dcinv, rnc, minv_op);
-    gs(Dcinv, gs_double, gs_add, 0, gsh_c, 0);
 
     // W_skel = intp.min_skel( (Ar/Dc) .* (Df\Ar) );
     struct csr_mat *ArD = tmalloc(struct csr_mat, 1); //ArD = (Ar/Dc) .* (Df\Ar)
@@ -439,15 +406,9 @@ void interpolation(struct csr_mat *W, struct csr_mat *Af, struct csr_mat *Ac,
     free(r);
 
     // free Arcpy
-    free(ArD->row_off);
-    free(ArD->col);
-    free(ArD->a);
-    free(ArD);
+    csr_free(&ArD);
     // free W_skel
-    free(W_skel->row_off);
-    free(W_skel->col);
-    free(W_skel->a);
-    free(W_skel);
+    csr_free(&W_skel);
 }
 
 /* Solve interpolation weights */
@@ -471,12 +432,14 @@ void solve_weights(struct csr_mat *W, struct csr_mat *W0, double *lam,
     struct csr_mat *Arminus = tmalloc(struct csr_mat, 1);
     copy_csr(Arminus, Ar);
     ar_scal_op(Arminus->a,-1,Ar->row_off[rnr],mult_op);
-
-/*    
-    // Matrices W0, Af and Ar should be transposed to get the correct result !
-    //interp(W0, Af, Ar, au, lam);
     
-*/
+    // Matrices W0, Af and Ar should be transposed to get the correct result !
+    // au = alpha.*u
+    double *zeros = tmalloc(double, rnc);
+    init_array(zeros, rnc, 0.0);
+    interp(W0, Af, Arminus, au, lam, W_skel);
+    
+
 
     csr_free(&Arminus);
 
@@ -670,8 +633,7 @@ void min_skel(struct csr_mat *W_skel, struct csr_mat *R)
 }
 
 /* Preconditioned conjugate gradient */
-uint pcg(double *x, struct csr_mat *A, double *r, double *M, double tol,
-    struct gs_data *gsh, struct gs_data *gsh_single)
+uint pcg(double *x, struct csr_mat *A, double *r, double *M, double tol)
 {
     uint rn = A->rn;
     uint cn = A->cn;
@@ -691,12 +653,10 @@ uint pcg(double *x, struct csr_mat *A, double *r, double *M, double tol,
     // rho_stop=tol*tol*rho_0
     double rho = vv_dot(r, z, rn);
 
-    gs(&rho, gs_double, gs_add, 0, gsh_single, 0);
     double rho_stop = tol*tol*rho;
 
     // n = min(length(r),100);
     uint n = rn;
-    gs(&n, gs_int, gs_add, 0, gsh_single, 0);
     n = (n <= 100) ? n : 100;
 
     // if n==0; return; end
@@ -724,14 +684,12 @@ uint pcg(double *x, struct csr_mat *A, double *r, double *M, double tol,
         // p = z + beta * p;
         ar_scal_op(p, beta, rn, mult_op);
         vv_op(p, z, rn, plus);
-        gs(p, gs_double, gs_add, 0, gsh, 0);
 
         // w = A(p); (A(p) = A*p)
         apply_M(w, 0, p, 1, A, p);
 
         // alpha = rho / (p'*w);
         alpha = vv_dot(p, w, rn);
-        gs(&alpha, gs_double, gs_add, 0, gsh_single, 0);
         alpha = rho / alpha;
 
         // x = x + alpha*p;
@@ -752,7 +710,6 @@ uint pcg(double *x, struct csr_mat *A, double *r, double *M, double tol,
 
         // rho = r'*z;
         rho = vv_dot(r, z, rn);
-        gs(&rho, gs_double, gs_add, 0, gsh_single, 0);
     }
 
     free(p);
@@ -797,8 +754,8 @@ void sparsify(double *S, struct csr_mat *A, double tol)
 
     // Build matrix A using coordinate list format for sorting
     // coo_A = abs(A)
-    struct coo_mat *coo_A = tmalloc(struct coo_mat, ncol);  
-    struct coo_mat *p = coo_A;  
+    coo_mat *coo_A = tmalloc(coo_mat, ncol);  
+    coo_mat *p = coo_A;  
 
     uint i;
     for(i=0;i<rn;++i) 
@@ -814,7 +771,7 @@ void sparsify(double *S, struct csr_mat *A, double tol)
         }
     }
 
-    qsort(coo_A, ncol, sizeof(struct coo_mat), comp_coo_v);
+    qsort(coo_A, ncol, sizeof(coo_mat), comp_coo_v);
 
     for (i=0; i<ncol; i++)
     {
@@ -857,8 +814,7 @@ void chebsim(double *m, double *c, double rho, double tol)
 /* 
   Eigenvalues evaluations by Lanczos algorithm
 */
-uint lanczos(double **lambda, struct csr_mat *A, slong *gs_id,
-             struct gs_data *gsh, struct gs_data *gsh_single)
+uint lanczos(double **lambda, struct csr_mat *A)
 {
     uint rn = A->rn;
     uint cn = A->cn;
@@ -885,11 +841,10 @@ uint lanczos(double **lambda, struct csr_mat *A, slong *gs_id,
 
     double beta = array_op(r, rn, norm2_op);
     double beta2 = beta*beta;
-    gs(&beta2, gs_double, gs_add, 0, gsh_single, 0);
     beta = sqrt(beta2);
 
     uint k = 0; 
-    double change = 0;
+    double change = 0.0;
 
     // norm(A-speye(n),'fro') < 0.00000000001
     double *eye = tmalloc(double, rn);
@@ -906,13 +861,9 @@ uint lanczos(double **lambda, struct csr_mat *A, slong *gs_id,
     double fronorm = array_op(Acpy->a, Acpy->row_off[rn], norm2_op);
 
     // Free matrix
-    free(Acpy->row_off);
-    free(Acpy->col);
-    free(Acpy->a);
-    free(Acpy);
+    csr_free(&Acpy);
 
     double fronorm2 = fronorm * fronorm;
-    gs(&fronorm2, gs_double, gs_add, 0, gsh_single, 0);
     fronorm = sqrt(fronorm2);
 
     if (fronorm < 1e-11)
@@ -922,34 +873,24 @@ uint lanczos(double **lambda, struct csr_mat *A, slong *gs_id,
         y[0] = 0;
         y[1] = 0;
         k = 2;
-        change = 0;
+        change = 0.0;
     }
     else
     {
-        change = 1;
+        change = 1.0;
     }
 
     // If n == 1
-    uint rnglob = rn;
-    gs(&rnglob, gs_int, gs_add, 0, gsh_single, 0);
-    if (rnglob == 1)
+    if (rn == 1)
     {
-        double A00 = 0;
-
-        // If global number of rows is one and process has one row
-        if (rn == 1)
-        {
-            A00 = A->a[0];
-        }
-        
-        gs(&A00, gs_double, gs_add, 0, gsh_single, 0);
+        double A00 = A->a[0];
 
         l[0] = A00;
         l[1] = A00;
         y[0] = 0;
         y[1] = 0;
         k = 2;
-        change = 0; 
+        change = 0.0; 
     }
 
     // While...
@@ -970,14 +911,12 @@ uint lanczos(double **lambda, struct csr_mat *A, slong *gs_id,
         // qk = r/beta
         memcpy(qk, r, rn*sizeof(double));
         ar_scal_op(qk, 1./beta, rn, mult_op);
-        gs(qk, gs_double, gs_add, 0, gsh, 0);
 
         // Aqk = A*qk
         apply_M(Aqk, 0, qk, 1, A, qk);
 
         // alpha = qk'*Aqk
         double alpha = vv_dot(qk, Aqk, rn); 
-        gs(&alpha, gs_double, gs_add, 0, gsh_single, 0);
 
         //a = [a; alpha];
         a[na++] = alpha;
@@ -1018,7 +957,6 @@ uint lanczos(double **lambda, struct csr_mat *A, slong *gs_id,
 
         beta = array_op(r, rn, norm2_op);
         beta2 = beta*beta;
-        gs(&beta2, gs_double, gs_add, 0, gsh_single, 0);
         beta = sqrt(beta2);
         b[nb++] = beta;
 
@@ -1169,15 +1107,13 @@ static void tdeig(double *lambda, double *y, double *d, const double *v,
   for(i=0;i<=n;++i) lambda[i] = sec_root(&y[i],d,v,i,n);
 }
 
-void coarsen(double *vc, struct csr_mat *A, double ctol, slong *gs_id,
-    struct gs_data *gsh, struct gs_data *gsh_single)
+void coarsen(double *vc, struct csr_mat *A, double ctol)
 {
     uint rn = A->rn, cn = A->cn;
 
     // D = diag(A)
     double *D = tmalloc(double, cn);
     diag(D, A);
-    gs(D, gs_double, gs_add, 0, gsh, 0);
 
     // D = 1/sqrt(D)
     array_op(D, cn, sqrt_op);
@@ -1214,50 +1150,42 @@ void coarsen(double *vc, struct csr_mat *A, double ctol, slong *gs_id,
 
     double *tmp = tmalloc(double, cn); // temporary array required for  
                                        // storing intermediate results
-    double *w = tmalloc(double, rn);
+    double *w = tmalloc(double, cn);
 
-    double *mask = tmalloc(double, rn);
-    double *m = tmalloc(double, rn);
+    double *mask = tmalloc(double, cn);
+    double *m = tmalloc(double, cn);
 
     while (1)
     {
         // w1 = vf.*(S*(vf.*(S*vf)))
         apply_M(g, 0, vf, 1., S, vf); // g = S*vf 
-        vv_op(g, vf, rn, ewmult); // g = vf.*g
-        gs(g, gs_double, gs_add, 0, gsh, 0);
+        vv_op(g, vf, cn, ewmult); // g = vf.*g
         apply_M(w1, 0, g, 1., S, g); // w1 = S*g
-        vv_op(w1, vf, rn, ewmult); // w1 = vf.*w1
-        gs(w1, gs_double, gs_add, 0, gsh, 0);
+        vv_op(w1, vf, cn, ewmult); // w1 = vf.*w1
 
         // w2 = vf.*(S *(vf.*(S*w1)))
         apply_M(w2, 0, w1, 1., S, w1); // w2 = S*w1
-        vv_op(w2, vf, rn, ewmult); // w2 = vf.*w2
-        gs(w2, gs_double, gs_add, 0, gsh, 0);
+        vv_op(w2, vf, cn, ewmult); // w2 = vf.*w2
         apply_M(tmp, 0, w2, 1., S, w2); // tmp = S*w2
-        memcpy(w2, tmp, rn*sizeof(double)); // tmp = w2
-        vv_op(w2, vf, rn, ewmult); // w2 = vf.*w2
+        memcpy(w2, tmp, cn*sizeof(double)); // tmp = w2
+        vv_op(w2, vf, cn, ewmult); // w2 = vf.*w2
 
         // w = w2./w1
-        memcpy(w, w1, rn*sizeof(double)); // w = w1
-        array_op(w, rn, minv_op); // w = 1./w1
-        vv_op(w, w2, rn, ewmult); // w = w2./w1
+        memcpy(w, w1, cn*sizeof(double)); // w = w1
+        array_op(w, cn, minv_op); // w = 1./w1
+        vv_op(w, w2, cn, ewmult); // w = w2./w1
 
         uint i;
-        for (i=0;i<rn;i++) // w(w1==0) = 0;
+        for (i=0;i<cn;i++) // w(w1==0) = 0;
         {
             if (w1[i] == 0) w[i] = 0.;
         }
 
         // b = sqrt(min(max(w1),max(w)));
-        double b, w1ml, w1m, wm; // w1m = max(w1), wm = max(w)
-        uint mil, unused; // mi = index of w1m in w1
-        extr_op(&w1ml, &mil, w1, rn, max);
-        extr_op(&wm, &unused, w, rn, max);
-        
-        // Scatter global max to all processes
-        w1m = w1ml;
-        gs(&w1m, gs_double, gs_max, 0, gsh_single, 0);
-        gs(&wm , gs_double, gs_max, 0, gsh_single, 0);
+        double b, w1m, wm; // w1m = max(w1), wm = max(w)
+        uint mi, unused; // mi = index of w1m in w1
+        extr_op(&w1m, &mi, w1, cn, max);
+        extr_op(&wm, &unused, w, cn, max);
 
         b = (w1m < wm) ? sqrt(w1m) : sqrt(wm);
 
@@ -1266,60 +1194,45 @@ void coarsen(double *vc, struct csr_mat *A, double ctol, slong *gs_id,
         {
             if (anyvc == 0)
             {
-                uint mi; // Global index for the max
-                if (w1ml == w1m) // If local max is global mi = gs_id[mil]
-                {
-                    mi = (uint) gs_id[mil];
-                }
-                else // Else dummy value 
-                {
-                    mi = -1;
-                }
-                // We take the min global index to resolve ties
-                gs(&mi, gs_int, gs_min, 0, gsh_single, 0);
-
-                for (i=0;i<rn;i++)
-                {
-                    if (mi == (uint) gs_id[i]) {vc[i] = 1.; break;}
-                }
+                 vc[i] = 1.;
             }
             break;
         }
 
         // mask = w > ctol^2;
-        mask_op(mask, w, rn, ctol*ctol, gt);
+        mask_op(mask, w, cn, ctol*ctol, gt);
  
         // m = mat_max(S,vf,mask.*g)
         double mat_max_tol = 0.1; // ==> hard-coded tolerance
-        memcpy(tmp, g, rn*sizeof(double)); // tmp = g
+        memcpy(tmp, g, cn*sizeof(double)); // tmp = g
             // g (needed later) copied into tmp
-        vv_op(tmp, mask, rn, ewmult); // tmp = mask.*tmp (= mask.*g)        
-        mat_max(m, S, vf, tmp, mat_max_tol, gsh); // m = mat_max(S,vf,mask.*g)
+        vv_op(tmp, mask, cn, ewmult); // tmp = mask.*tmp (= mask.*g)        
+        mat_max(m, S, vf, tmp, mat_max_tol); // m = mat_max(S,vf,mask.*g)
  
         // mask = mask & (g-m>=0)
-        vv_op(g, m, rn, minus); // g = g - m
-        mask_op(tmp, g, rn, 0., ge); // tmp = (g-m>=0)
-        bin_op(mask, tmp, rn, and_op); // mask = mask & tmp;
+        vv_op(g, m, cn, minus); // g = g - m
+        mask_op(tmp, g, cn, 0., ge); // tmp = (g-m>=0)
+        bin_op(mask, tmp, cn, and_op); // mask = mask & tmp;
 
         // m = mat_max(S,vf,mask.*id)
-        for (i=0;i<rn;i++)
+        for (i=0;i<cn;i++)
         {
-            g[i] = (double)gs_id[i]; // g = (double) id
+            g[i] = (double)i + 1.0; // g = (double) id
         }
-        memcpy(tmp, mask, rn*sizeof(double)); // copy mask to tmp
-        vv_op(tmp, g, rn, ewmult); // tmp = tmp.*g (= mask.*id)
-        mat_max(m, S, vf, tmp, mat_max_tol, gsh); // m = mat_max(S,vf,mask.*g)
+        memcpy(tmp, mask, cn*sizeof(double)); // copy mask to tmp
+        vv_op(tmp, g, cn, ewmult); // tmp = tmp.*g (= mask.*id)
+        mat_max(m, S, vf, tmp, mat_max_tol); // m = mat_max(S,vf,mask.*g)
 
         // mask = mask & (id-m>0)
-        vv_op(g, m, rn, minus); // id = id - m
-        mask_op(tmp, g, rn, 0., gt); // tmp = (id-m>0)
-        bin_op(mask, tmp, rn, and_op); // mask = mask & tmp;
+        vv_op(g, m, cn, minus); // id = id - m
+        mask_op(tmp, g, cn, 0., gt); // tmp = (id-m>0)
+        bin_op(mask, tmp, cn, and_op); // mask = mask & tmp;
 
         // vc = vc | mask ; vf = xor(vf, mask)
-        bin_op(vc, mask, rn, or_op); // vc = vc | mask;
+        bin_op(vc, mask, cn, or_op); // vc = vc | mask;
         if (anyvc == 0)
         {
-            for (i=0;i<rn;i++) 
+            for (i=0;i<cn;i++) 
             {
                 if (vc[i] == 1.)
                 {
@@ -1327,18 +1240,12 @@ void coarsen(double *vc, struct csr_mat *A, double ctol, slong *gs_id,
                     break;
                 }
             }
-            gs(&anyvc , gs_int, gs_max, 0, gsh_single, 0);
         }
-        bin_op(vf, mask, rn, xor_op); // vf = vf (xor) mask;
-        
-        gs(vf, gs_double, gs_add, 0, gsh, 0); // update vf
+        bin_op(vf, mask, cn, xor_op); // vf = vf (xor) mask;
     }
 
     // Free S
-    free(S->row_off);
-    free(S->col);
-    free(S->a);
-    free(S);
+    csr_free(&S);
 
     // Free arrays
     free(vf);
@@ -1723,17 +1630,34 @@ void csr_free(struct csr_mat **A)
 }
 
 /* Build sparse matrix using the csr format
-   Assumptions:
-    - A->rn and A->cn are set already
-    - coo_A is sorted
+   It is assumed that  
+   - the function is called in serial
+   - coo_A is sorted by rows and columns
 */
-void build_csr(struct csr_mat *A, struct coo_mat *coo_A, uint nnz,
-    slong *gs_id)
+void build_csr(struct csr_mat *A, coo_mat *coo_A, uint nnz)
 {
-    uint rn = A->rn, cn = A->cn;
-    uint i, j;
-    uint row_cur, row_prev = coo_A[0].i, counter = 1;
+    // Sort matrix by rows then columns
+    buffer buf = {0};
+    sarray_sort_2(coo_mat, coo_A, nnz, i, 0, j, 0, &buf);
+    buffer_free(&buf);
 
+    /* Go to csr format */
+    // Check for dimensions
+    uint rn=0, cn=0;
+    uint i;
+    for (i=0;i<nnz;i++)
+    {
+        if (coo_A[i].i+1 > rn) rn = coo_A[i].i+1;
+        if (coo_A[i].j+1 > cn) cn = coo_A[i].j+1;
+    }
+
+    A->rn = rn;
+    A->cn = cn;
+    A->row_off = tmalloc(uint, rn+1);
+    A->col = tmalloc(uint, nnz);
+    A->a = tmalloc(double, nnz);
+
+    uint row_cur, row_prev = coo_A[0].i, counter = 1;
     A->row_off[0] = 0;
     
     for (i=0;i<nnz;i++)
@@ -1745,14 +1669,8 @@ void build_csr(struct csr_mat *A, struct coo_mat *coo_A, uint nnz,
     
         row_prev = row_cur;
         
-        // col /!\ col is not sorted!!!
-        // local index of the column is computed
-        slong *item;
-        slong key = (slong)coo_A[i].j+1;
-	    item = (slong*)bsearch(&key, gs_id, rn, sizeof(slong), comp_gs_id);
-        if (item != NULL) A->col[i] = (uint)(item - gs_id);
-	    else A->col[i] = (uint) ((slong*)bsearch(&key, gs_id+rn,
-                             cn-rn, sizeof(slong), comp_gs_id) - gs_id);
+        // col
+        A->col[i] = coo_A[i].j;
 
         // a
         A->a[i] = coo_A[i].v;
@@ -1768,8 +1686,8 @@ int comp_gs_id(const void *a, const void *b)
 
 int comp_coo_v (const void * a, const void * b)
 {
-    if (((struct coo_mat*)a)->v > ((struct coo_mat*)b)->v) return 1;
-    else if (((struct coo_mat*)a)->v < ((struct coo_mat*)b)->v) return -1;
+    if (((coo_mat*)a)->v > ((coo_mat*)b)->v) return 1;
+    else if (((coo_mat*)a)->v < ((coo_mat*)b)->v) return -1;
     else return 0;
 } 
 
@@ -1792,29 +1710,29 @@ int comp_coo_j (const void * a, const void * b)
 /* Sort coo matrix by rows first then by columns */
 int comp_coo_ij (const void * a, const void * b)
 {
-    if (  ((struct coo_mat*)a)->i >  ((struct coo_mat*)b)->i  ||
-        ( ((struct coo_mat*)a)->i == ((struct coo_mat*)b)->i  &&
-          ((struct coo_mat*)a)->j >  ((struct coo_mat*)b)->j )  ) return 1;
-    else if (((struct coo_mat*)a)->i == ((struct coo_mat*)b)->i &&
-             ((struct coo_mat*)a)->j == ((struct coo_mat*)b)->j) return 0;
+    if (  ((coo_mat*)a)->i >  ((coo_mat*)b)->i  ||
+        ( ((coo_mat*)a)->i == ((coo_mat*)b)->i  &&
+          ((coo_mat*)a)->j >  ((coo_mat*)b)->j )  ) return 1;
+    else if (((coo_mat*)a)->i == ((coo_mat*)b)->i &&
+             ((coo_mat*)a)->j == ((coo_mat*)b)->j) return 0;
     else return -1;
 }
 
 /* Sort coo matrix by columns first then by rows */
 int comp_coo_ji (const void * a, const void * b)
 {
-    if (  ((struct coo_mat*)a)->j >  ((struct coo_mat*)b)->j  ||
-        ( ((struct coo_mat*)a)->j == ((struct coo_mat*)b)->j  &&
-          ((struct coo_mat*)a)->i >  ((struct coo_mat*)b)->i )  ) return 1;
-    else if (((struct coo_mat*)a)->i == ((struct coo_mat*)b)->i &&
-             ((struct coo_mat*)a)->j == ((struct coo_mat*)b)->j) return 0;
+    if (  ((coo_mat*)a)->j >  ((coo_mat*)b)->j  ||
+        ( ((coo_mat*)a)->j == ((coo_mat*)b)->j  &&
+          ((coo_mat*)a)->i >  ((coo_mat*)b)->i )  ) return 1;
+    else if (((coo_mat*)a)->i == ((coo_mat*)b)->i &&
+             ((coo_mat*)a)->j == ((coo_mat*)b)->j) return 0;
     else return -1;
 }
 
 /* Function based on what is done in amg.c in order to dump data to Matlab.
    Build the coarse assembled matrix and an id array for the gather-scatter */
-void build_setup_data(struct csr_mat *A, slong **gs_id, uint n, const ulong
-    *id, uint nz_unassembled, const uint *Ai, const uint* Aj, const double *Av,   
+void build_setup_data(struct csr_mat *A, uint n, const ulong *id,  
+    uint nz_unassembled, const uint *Ai, const uint* Aj, const double *Av,   
     struct crs_data *data)
 {
     struct crystal cr;
@@ -1853,8 +1771,8 @@ void build_setup_data(struct csr_mat *A, slong **gs_id, uint n, const ulong
 
     rlbl = nonlocal_id.ptr;
 
-    struct coo_mat *coo_A = tmalloc(struct coo_mat, nnz);
-    struct coo_mat *coo_A_ptr = coo_A;
+    coo_mat *coo_A = tmalloc(coo_mat, nnz);
+    coo_mat *coo_A_ptr = coo_A;
 
     for(nz=mat.ptr,enz=nz+nnz;nz!=enz;++nz) 
     {
@@ -1879,52 +1797,42 @@ void build_setup_data(struct csr_mat *A, slong **gs_id, uint n, const ulong
     array_free(&uid);
     array_free(&mat);
     array_free(&nonlocal_id);
-    crystal_free(&cr);
 
-    /* Sort matrix by rows first then by columns */
-    qsort(coo_A, nnz, sizeof(struct coo_mat), comp_coo_ij);
+    // Send eveything proc 0    
+    struct array coo_A_dest = null_array;
+    coo_mat_dest *p, *e;
+    
+    p = array_reserve(coo_mat_dest, &coo_A_dest, nnz);
+    coo_A_dest.n = nnz;
 
-    /* Extract sorted global ids of rows and columns */
-    uint *rows = tmalloc(uint, nnz);
-    uint *cols = tmalloc(uint, nnz);
-
-    for(i=0;i<nnz;i++)
+    int counter = 0;
+    for(e=p+coo_A_dest.n;p!=e;++p) 
     {
-        rows[i] = coo_A[i].i;
-        cols[i] = coo_A[i].j;
-    }   
-
-    /* Extract unique ids as well as numbers of rows and columns */
-    uint rn, cn;
-    rn = remdup(rows, nnz);
-    qsort(cols, nnz, sizeof(uint), comp_uint);
-    cn = remdup(cols, nnz);
-
-    /* Build gs_id, the array of global ids for gs communication */
-    *gs_id = tmalloc(slong, cn);
-
-    // Variables for position of the ids owned and not owned in gs_id
-    uint p = 0, q = rn;
-
-    for (i=0;i<cn;i++)
-    {
-        if (cols[i] == rows[p])  (*gs_id)[p++] = (slong)(cols[i]+1);
-        else (*gs_id)[q++] =  -(slong)(cols[i]+1);
+        p->coo_A = coo_A[counter++];
+        p->dest  = 0;
     }
 
-    free(rows);
-    free(cols);
+    sarray_transfer(coo_mat_dest, &coo_A_dest, dest, 1, &cr);
 
-    /* Malloc and build sparse matrix using csr format */
-    A->rn = rn;
-    A->cn = cn;
-    A->row_off = tmalloc(uint, rn+1);
-    A->col = tmalloc(uint, nnz);
-    A->a = tmalloc(double, nnz);
-
-    build_csr(A, coo_A, nnz, *gs_id);
+    // Work on proc 0 only
+    if ((data->comm).id == 0)
+    {
+        // Build matrix in coord. list format
+        nnz = coo_A_dest.n;
+        coo_A = trealloc(coo_mat,coo_A,nnz);
+        p = coo_A_dest.ptr;
+        for (i=0;i<nnz;i++)
+        {
+            coo_A[i] = p[i].coo_A;
+        }
+        
+        // Build csr matrix
+        build_csr(A, coo_A, nnz);
+    }
 
     free(coo_A);
+    crystal_free(&cr);
+    array_free(&coo_A_dest);
 }
 
 /* Comparison function for uint */
@@ -1953,17 +1861,15 @@ static uint remdup(uint *array, uint size)
 /* /!\ Contrary to the original mex function, this one is valid for a square 
    symmetric matrix A only 
    - x and y are local
-   - f is global    
 */
 static void mat_max(double *y, struct csr_mat *A, double *f, double *x, 
-    double tol, struct gs_data *gsh)
+    double tol)
 {
     uint i, rn = A->rn, cn = A->cn;
-    double *yg = tmalloc(double, cn); // global version of y
 
     for(i=0;i<cn;++i) 
     {
-        yg[i] = -DBL_MAX;
+        y[i] = -DBL_MAX;
     }
 
     for(i=0;i<rn;++i) 
@@ -1978,15 +1884,7 @@ static void mat_max(double *y, struct csr_mat *A, double *f, double *x,
         {
             uint k = A->col[j];
             if(f[k] == 0 || fabs(A->a[j]) < Amax) continue;
-            if(xj>yg[k]) yg[k]=xj;
+            if(xj>y[k]) y[k]=xj;
         }
     }
-    
-    // Vector y contains maximum values associated with local rows only
-    // ==> gather-scatter is required !
-    gs(yg, gs_double, gs_max, 1, gsh, 0); // gather max
-    gs(yg, gs_double, gs_max, 0, gsh, 0); // scatter max
-
-    memcpy(y, yg, rn*sizeof(double));
-    free(yg);
 }
